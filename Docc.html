@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocQueue — Find Doctors, Skip the Wait</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+    :root {
+      --primary: #2563EB;
+      --primary-light: #DBEAFE;
+      --primary-dark: #1D4ED8;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --surface: #F8FAFF;
+      --border: #E2E8F0;
+    }
+    body { background: var(--surface); color: #0F172A; overflow-x: hidden; margin: 0; }
+
+    /* ── Page System ── */
+    .page { display: none; min-height: 100vh; }
+    .page.active { display: block; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
+
+    /* ── Animations ── */
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+    @keyframes slideUp  { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideInRight { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes bounceIn { 0% { transform:scale(0.5); opacity:0; } 60% { transform:scale(1.08); } 100% { transform:scale(1); opacity:1; } }
+    @keyframes pulse-ring { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.3); opacity:0; } }
+    @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+    @keyframes countPop { 0% { transform:scale(1.4); color:#2563EB; } 100% { transform:scale(1); } }
+    @keyframes slideInUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    @keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .fade-up    { animation: fadeInUp 0.5s ease forwards; }
+    .fade-in    { animation: fadeIn 0.4s ease forwards; }
+    .slide-up   { animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .bounce-in  { animation: bounceIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+    .d1 { animation-delay:0.05s; opacity:0; animation-fill-mode:forwards; }
+    .d2 { animation-delay:0.10s; opacity:0; animation-fill-mode:forwards; }
+    .d3 { animation-delay:0.15s; opacity:0; animation-fill-mode:forwards; }
+    .d4 { animation-delay:0.20s; opacity:0; animation-fill-mode:forwards; }
+    .d5 { animation-delay:0.25s; opacity:0; animation-fill-mode:forwards; }
+    .d6 { animation-delay:0.30s; opacity:0; animation-fill-mode:forwards; }
+
+    /* ── Cards ── */
+    .card { background:#fff; border:1px solid var(--border); border-radius:20px; }
+    .card-hover { transition:all 0.28s cubic-bezier(0.4,0,0.2,1); cursor:pointer; }
+    .card-hover:hover { transform:translateY(-3px); box-shadow:0 16px 48px rgba(37,99,235,0.12); border-color:#93C5FD; }
+
+    /* ── Inputs ── */
+    .inp { width:100%; border:1.5px solid var(--border); border-radius:12px; padding:13px 16px; font-size:15px; outline:none; transition:all 0.2s; background:#fff; color:#0F172A; }
+    .inp:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,0.10); }
+
+    /* ── Buttons ── */
+    .btn-blue { background:linear-gradient(135deg,#2563EB,#1D4ED8); color:#fff; border:none; border-radius:12px; padding:14px 24px; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; width:100%; box-shadow:0 4px 14px rgba(37,99,235,0.30); }
+    .btn-blue:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(37,99,235,0.40); }
+    .btn-blue:active { transform:translateY(0); }
+    .btn-white { background:#fff; color:#0F172A; border:1.5px solid var(--border); border-radius:12px; padding:14px 24px; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.2s; width:100%; }
+    .btn-white:hover { background:#F8FAFC; }
+    .btn-green { background:linear-gradient(135deg,#10B981,#059669); color:#fff; border:none; border-radius:12px; padding:14px 24px; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; width:100%; box-shadow:0 4px 14px rgba(16,185,129,0.30); }
+    .btn-red { background:linear-gradient(135deg,#EF4444,#DC2626); color:#fff; border:none; border-radius:12px; padding:14px 24px; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; width:100%; }
+    .btn-sm { padding:9px 16px; font-size:13px; border-radius:10px; font-weight:600; cursor:pointer; border:none; transition:all 0.18s; }
+    .btn-sm:hover { opacity:0.9; transform:scale(0.98); }
+
+    /* ── Status ── */
+    .s-available { background:#DCFCE7; color:#16A34A; }
+    .s-busy      { background:#FEF9C3; color:#CA8A04; }
+    .s-closed    { background:#FEE2E2; color:#DC2626; }
+
+    /* ── Nav ── */
+    .top-bar { position:sticky; top:0; z-index:200; background:rgba(255,255,255,0.94); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+    .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,0.96); backdrop-filter:blur(20px); border-top:1px solid var(--border); z-index:200; padding-bottom:env(safe-area-inset-bottom); }
+    .bnav-btn { flex:1; display:flex; flex-direction:column; align-items:center; padding:10px 4px 8px; cursor:pointer; transition:color 0.2s; color:#94A3B8; border:none; background:none; }
+    .bnav-btn.on { color:#2563EB; }
+    .bnav-btn:hover { color:#2563EB; }
+
+    /* ── Chip ── */
+    .chip { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; border:1.5px solid transparent; white-space:nowrap; }
+    .chip-on  { background:#2563EB; color:#fff; border-color:#2563EB; }
+    .chip-off { background:#fff; color:#64748B; border-color:var(--border); }
+    .chip-off:hover { border-color:#93C5FD; color:#2563EB; }
+
+    /* ── Queue Bar ── */
+    .qbar { height:6px; border-radius:999px; background:#E2E8F0; overflow:hidden; }
+    .qfill { height:100%; border-radius:999px; transition:width 0.7s cubic-bezier(0.4,0,0.2,1); }
+
+    /* ── Pulse dot ── */
+    .pdot { display:inline-block; border-radius:50%; }
+    .pdot-anim { animation:pulse-ring 1.5s ease-in-out infinite; }
+
+    /* ── Skeleton ── */
+    .skel { background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:12px; }
+
+    /* ── Token Card ── */
+    .token-card { background:linear-gradient(135deg,#2563EB 0%,#0284C7 100%); border-radius:24px; color:#fff; text-align:center; position:relative; overflow:hidden; }
+    .token-card::before { content:''; position:absolute; top:-50px; right:-50px; width:150px; height:150px; border-radius:50%; background:rgba(255,255,255,0.07); }
+    .token-card::after  { content:''; position:absolute; bottom:-40px; left:-40px; width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,0.05); }
+
+    /* ── Modal ── */
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; display:flex; align-items:flex-end; justify-content:center; animation:fadeIn 0.2s ease; }
+    .sheet { background:#fff; border-radius:28px 28px 0 0; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; animation:slideInUp 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+
+    /* ── Toast ── */
+    .toast { position:fixed; top:76px; right:12px; z-index:9999; background:#1E293B; color:#fff; padding:13px 18px; border-radius:14px; font-size:14px; font-weight:500; box-shadow:0 10px 40px rgba(0,0,0,0.2); animation:slideInRight 0.3s ease; max-width:300px; }
+
+    /* ── Avatar ── */
+    .avatar { display:flex; align-items:center; justify-content:center; font-weight:800; border-radius:16px; flex-shrink:0; }
+    .av-general  { background:#DBEAFE; color:#2563EB; }
+    .av-dental   { background:#D1FAE5; color:#059669; }
+    .av-cardio   { background:#FFE4E6; color:#E11D48; }
+    .av-derma    { background:#F3E8FF; color:#9333EA; }
+    .av-ortho    { background:#FFEDD5; color:#EA580C; }
+    .av-pediatric{ background:#FEF9C3; color:#CA8A04; }
+    .av-ent      { background:#CCFBF1; color:#0D9488; }
+    .av-neuro    { background:#EDE9FE; color:#7C3AED; }
+
+    /* ── Switch ── */
+    .sw { position:relative; display:inline-block; width:50px; height:27px; }
+    .sw input { opacity:0; width:0; height:0; }
+    .sl { position:absolute; cursor:pointer; inset:0; background:#CBD5E1; border-radius:999px; transition:0.3s; }
+    .sl::before { content:''; position:absolute; height:21px; width:21px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.3s; box-shadow:0 2px 5px rgba(0,0,0,0.15); }
+    input:checked + .sl { background:#2563EB; }
+    input:checked + .sl::before { transform:translateX(23px); }
+
+    /* ── Counter btn ── */
+    .cbtn { width:44px; height:44px; border-radius:12px; border:none; font-size:22px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+    .cbtn:hover { transform:scale(1.1); }
+    .cbtn:active { transform:scale(0.95); }
+
+    /* ── Scroll X ── */
+    .sx { overflow-x:auto; scrollbar-width:none; }
+    .sx::-webkit-scrollbar { display:none; }
+
+    /* ── Doctor Login Specific ── */
+    .doc-login-bg { background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 50%,#0C4A6E 100%); min-height:100vh; }
+    .glass { background:rgba(255,255,255,0.06); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.12); border-radius:24px; }
+
+    /* ── Admin stat card ── */
+    .stat-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:18px; text-align:center; }
+
+    /* ── Admin Patient row ── */
+    .pat-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #F1F5F9; }
+    .pat-row:last-child { border-bottom:none; }
+
+    /* ── Ticker ── */
+    .ticker-wrap { overflow:hidden; white-space:nowrap; }
+    .ticker-inner { display:inline-block; animation:ticker 22s linear infinite; }
+
+    /* ── Map stub ── */
+    .map-stub { background:linear-gradient(135deg,#EFF6FF,#F0FDF4); border:2px dashed #BFDBFE; border-radius:18px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; cursor:pointer; }
+
+    /* ── Progress steps ── */
+    .step-dot { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+    .step-line { flex:1; height:2px; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+
+<!-- ████████████████████████████████████████
+     LANDING / ROLE SELECTION
+████████████████████████████████████████ -->
+<div class="page active" id="page-landing">
+  <div style="min-height:100vh; background:linear-gradient(160deg,#EFF6FF 0%,#F0F9FF 45%,#F5F3FF 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;">
+
+    <!-- Logo -->
+    <div class="fade-in" style="text-align:center; margin-bottom:48px;">
+      <div style="width:72px; height:72px; border-radius:22px; background:linear-gradient(135deg,#2563EB,#0284C7); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; box-shadow:0 12px 40px rgba(37,99,235,0.3);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+      </div>
+      <h1 style="font-size:36px; font-weight:900; color:#0F172A; letter-spacing:-1.5px; margin:0;">Doc<span style="color:#2563EB;">Queue</span></h1>
+      <p style="color:#64748B; margin-top:8px; font-size:16px;">Find doctors. Skip the wait.</p>
+    </div>
+
+    <!-- Role Cards -->
+    <div style="width:100%; max-width:380px; display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Patient -->
+      <div class="card card-hover fade-up d1" style="padding:28px; border-radius:24px;"
+           onclick="enterAsPatient()">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg,#DBEAFE,#EFF6FF); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="flex:1;">
+            <h2 style="font-size:18px; font-weight:800; color:#0F172A; margin:0 0 4px;">I'm a Patient</h2>
+            <p style="font-size:13px; color:#64748B; margin:0; line-height:1.5;">Find nearby doctors, check live queue & book slots</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:8px;">
+          <span style="background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">🔍 Discover</span>
+          <span style="background:#F0FDF4; color:#16A34A; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">⏱ Live Queue</span>
+          <span style="background:#FDF4FF; color:#9333EA; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">📅 Book</span>
+        </div>
+      </div>
+
+      <!-- Doctor -->
+      <div class="card card-hover fade-up d2" style="padding:28px; border-radius:24px; border-color:#0284C7;"
+           onclick="showPage('page-doctor-login')">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg,#CCFBF1,#F0FDFA); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+          </div>
+          <div style="flex:1;">
+            <h2 style="font-size:18px; font-weight:800; color:#0F172A; margin:0 0 4px;">I'm a Doctor</h2>
+            <p style="font-size:13px; color:#64748B; margin:0; line-height:1.5;">Manage your clinic queue, appointments & availability</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:8px;">
+          <span style="background:#CCFBF1; color:#0D9488; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">📊 Dashboard</span>
+          <span style="background:#FEF9C3; color:#CA8A04; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">👥 Queue Mgmt</span>
+          <span style="background:#DBEAFE; color:#2563EB; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px;">📋 Patients</span>
+        </div>
+      </div>
+
+    </div>
+
+    <p style="color:#CBD5E1; font-size:12px; margin-top:40px;">DocQueue v1.0 · Made with ❤️ in India</p>
+  </div>
+</div>
+
+<!-- ████████████████████████████████████████
+     DOCTOR LOGIN PAGE
+████████████████████████████████████████ -->
+<div class="page" id="page-doctor-login">
+  <div class="doc-login-bg" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:24px;">
+
+    <!-- Back -->
+    <button onclick="showPage('page-landing')" style="position:absolute; top:20px; left:20px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; border-radius:12px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+      ← Back
+    </button>
+
+    <div style="width:100%; max-width:380px;">
+
+      <!-- Header -->
+      <div class="fade-in" style="text-align:center; margin-bottom:36px;">
+        <div style="width:64px; height:64px; border-radius:20px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h1 style="font-size:28px; font-weight:900; color:white; margin:0 0 8px; letter-spacing:-0.5px;">Doctor Login</h1>
+        <p style="color:rgba(255,255,255,0.6); font-size:14px; margin:0;">Access your clinic dashboard</p>
+      </div>
+
+      <!-- Form -->
+      <div class="glass slide-up" style="padding:28px;">
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.7); margin-bottom:8px; letter-spacing:0.05em; text-transform:uppercase;">Medical Registration ID</label>
+          <input type="text" id="docRegId" placeholder="e.g. MCI-DL-2024-0042" class="inp" style="background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); color:white;" value="MCI-DL-2024-0042" />
+        </div>
+        <div style="margin-bottom:24px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.7); margin-bottom:8px; letter-spacing:0.05em; text-transform:uppercase;">Password</label>
+          <div style="position:relative;">
+            <input type="password" id="docPassword" placeholder="••••••••" class="inp" style="background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); color:white; padding-right:48px;" value="password123" />
+            <button onclick="togglePwd()" style="position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.5);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Login Btn -->
+        <button onclick="doctorLogin()" id="docLoginBtn" class="btn-blue" style="font-size:16px;">
+          Sign In to Dashboard
+        </button>
+
+        <div style="text-align:center; margin-top:16px;">
+          <span style="color:rgba(255,255,255,0.4); font-size:13px;">Forgot password? </span>
+          <button onclick="showToast('📧 Reset link sent to registered email', 'info')" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:13px; font-weight:600; cursor:pointer;">Reset</button>
+        </div>
+      </div>
+
+      <!-- Demo credentials -->
+      <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius:16px; padding:16px; margin-top:16px; text-align:center;">
+        <p style="color:rgba(255,255,255,0.5); font-size:12px; margin:0 0 8px;">Demo credentials pre-filled ↑</p>
+        <p style="color:rgba(255,255,255,0.7); font-size:12px; margin:0;">Try any of the 8 doctors in the system</p>
+      </div>
+
+      <!-- Quick doctor select (demo) -->
+      <div style="margin-top:16px;">
+        <p style="color:rgba(255,255,255,0.5); font-size:12px; text-align:center; margin-bottom:10px;">Or jump in as:</p>
+        <div class="sx" style="display:flex; gap:8px; padding-bottom:4px;">
+          <button onclick="quickDoctorLogin(0)" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Dr. Sharma</button>
+          <button onclick="quickDoctorLogin(1)" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Dr. Kapoor</button>
+          <button onclick="quickDoctorLogin(2)" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Dr. Mehta</button>
+          <button onclick="quickDoctorLogin(3)" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.8); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Dr. Rao</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ████████████████████████████████████████
+     DOCTOR DASHBOARD (Full Separate App)
+████████████████████████████████████████ -->
+<div class="page" id="page-doctor-app">
+
+  <!-- Doctor Top Bar -->
+  <div class="top-bar" id="docTopBar">
+    <div style="max-width:520px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:36px; height:36px; border-radius:12px; background:linear-gradient(135deg,#0D9488,#0891B2); display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <div>
+          <div style="font-size:13px; font-weight:800; color:#0F172A;" id="docDashName">Dr. Ananya Sharma</div>
+          <div style="font-size:11px; color:#64748B;" id="docDashSpec">General Physician</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button onclick="showDocNotif()" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button onclick="doctorLogout()" style="background:#FEE2E2; color:#DC2626; border:none; border-radius:10px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer;">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doctor Sub-Nav Tabs -->
+  <div style="max-width:520px; margin:0 auto; padding:0 16px; position:sticky; top:61px; z-index:100; background:rgba(248,250,255,0.95); backdrop-filter:blur(12px); padding-top:12px; padding-bottom:0;">
+    <div class="sx" style="display:flex; gap:6px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+      <button class="doc-tab chip chip-on" data-tab="overview" onclick="switchDocTab('overview', this)">📊 Overview</button>
+      <button class="doc-tab chip chip-off" data-tab="queue" onclick="switchDocTab('queue', this)">👥 Queue</button>
+      <button class="doc-tab chip chip-off" data-tab="appointments" onclick="switchDocTab('appointments', this)">📅 Appointments</button>
+      <button class="doc-tab chip chip-off" data-tab="analytics" onclick="switchDocTab('analytics', this)">📈 Analytics</button>
+      <button class="doc-tab chip chip-off" data-tab="profile" onclick="switchDocTab('profile', this)">⚙️ Settings</button>
+    </div>
+  </div>
+
+  <!-- Doctor Tab Content -->
+  <div style="max-width:520px; margin:0 auto; padding:16px 16px 100px;" id="docTabContent"></div>
+
+</div>
+
+<!-- ████████████████████████████████████████
+     PATIENT APP (Full Separate App)
+████████████████████████████████████████ -->
+<div class="page" id="page-patient-app">
+
+  <!-- Patient Top Bar -->
+  <div class="top-bar" id="patTopBar">
+    <div style="max-width:520px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,#2563EB,#0284C7); display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+        </div>
+        <span style="font-size:18px; font-weight:900; color:#0F172A; letter-spacing:-0.5px;">Doc<span style="color:#2563EB;">Queue</span></span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="patGoTo('notifications')" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; position:relative; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span style="position:absolute; top:6px; right:6px; width:7px; height:7px; background:#EF4444; border-radius:50%; border:1.5px solid white;"></span>
+        </button>
+        <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2563EB,#0284C7); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; font-weight:800; color:white;" onclick="patGoTo('profile')">RK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Content Area (sub-pages) -->
+  <div id="pat-area-home"   class="pat-area" style="display:block;"></div>
+  <div id="pat-area-detail" class="pat-area" style="display:none;"></div>
+  <div id="pat-area-queue"  class="pat-area" style="display:none;"></div>
+  <div id="pat-area-confirm"class="pat-area" style="display:none;"></div>
+
+  <!-- Patient Bottom Nav -->
+  <nav class="bottom-nav">
+    <div style="max-width:520px; margin:0 auto; display:flex;">
+      <button class="bnav-btn on" id="pnav-home" onclick="patGoTo('home')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:3px;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span style="font-size:11px; font-weight:600;">Home</span>
+      </button>
+      <button class="bnav-btn" id="pnav-myqueue" onclick="patGoTo('myqueue')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span style="font-size:11px; font-weight:600;">My Queue</span>
+      </button>
+      <button class="bnav-btn" id="pnav-notifications" onclick="patGoTo('notifications')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:3px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span style="font-size:11px; font-weight:600;">Alerts</span>
+      </button>
+      <button class="bnav-btn" id="pnav-profile" onclick="patGoTo('profile')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:3px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span style="font-size:11px; font-weight:600;">Profile</span>
+      </button>
+    </div>
+  </nav>
+
+</div>
+
+<!-- Toast container -->
+<div id="toastBox"></div>
+<!-- Modal container -->
+<div id="modalBox"></div>
+
+<!-- ████████████████████████████████████████
+     JAVASCRIPT — COMPLETE APPLICATION
+████████████████████████████████████████ -->
+<script>
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+const DOCTORS = [
+  { id:1, name:"Dr. Ananya Sharma",  spec:"General Physician", clinic:"Sharma Wellness Clinic",         addr:"12, Connaught Place, New Delhi", dist:0.4, rating:4.8, reviews:312, queue:3,  avgTime:7,  status:"available", fee:400,  exp:12, av:"AS", avCls:"av-general",  emoji:"🩺", timings:"Mon–Sat: 9AM–1PM, 5–8PM", phone:"+91 98765 43210", about:"Dr. Ananya Sharma is a highly experienced general physician with 12 years of practice. She specialises in preventive medicine, chronic disease management, and family healthcare.", tags:["Diabetes","Hypertension","Fever","General OPD"], lang:["English","Hindi"], nextSlot:"Today, 5:30 PM", joined:false, servedToday:12, totalPatients:2847, regId:"MCI-DL-2024-0001" },
+  { id:2, name:"Dr. Rajiv Kapoor",   spec:"Dentist",           clinic:"SmileFirst Dental Studio",        addr:"45, Lajpat Nagar, New Delhi",    dist:0.8, rating:4.9, reviews:486, queue:0,  avgTime:15, status:"available", fee:600,  exp:18, av:"RK", avCls:"av-dental",   emoji:"🦷", timings:"Mon–Sat: 10AM–7PM",       phone:"+91 87654 32109", about:"Dr. Rajiv Kapoor is a BDS, MDS-certified prosthodontist with 18 years of experience. Expert in cosmetic dentistry, implants, and paediatric dentistry.",                   tags:["Braces","Root Canal","Whitening","Implants"],  lang:["English","Hindi","Punjabi"], nextSlot:"Today, Now!", joined:false, servedToday:8, totalPatients:3421, regId:"MCI-DL-2024-0042" },
+  { id:3, name:"Dr. Priya Mehta",    spec:"Dermatologist",     clinic:"GlowCare Skin Clinic",            addr:"78, Khan Market, New Delhi",     dist:1.2, rating:4.7, reviews:229, queue:6,  avgTime:10, status:"busy",      fee:800,  exp:9,  av:"PM", avCls:"av-derma",    emoji:"✨", timings:"Tue–Sun: 11AM–6PM",       phone:"+91 76543 21098", about:"Dr. Priya Mehta is a certified dermatologist specialising in acne treatment, anti-aging, and cosmetic procedures. She trained at AIIMS Delhi.",                            tags:["Acne","Hair Loss","Botox","Laser"],             lang:["English","Hindi"],           nextSlot:"Today, 4:00 PM", joined:false, servedToday:15, totalPatients:1923, regId:"MCI-DL-2024-0101" },
+  { id:4, name:"Dr. Suresh Rao",     spec:"Cardiologist",      clinic:"HeartCare Centre",                addr:"23, Safdarjung, New Delhi",      dist:1.8, rating:4.6, reviews:178, queue:8,  avgTime:12, status:"busy",      fee:1200, exp:22, av:"SR", avCls:"av-cardio",   emoji:"❤️", timings:"Mon–Fri: 10AM–3PM",       phone:"+91 65432 10987", about:"Dr. Suresh Rao is an interventional cardiologist with 22 years of experience. He has performed over 5,000 angioplasties.",                                                  tags:["Angioplasty","ECG","Echo","Heart Failure"],     lang:["English","Hindi","Telugu"],  nextSlot:"Tomorrow, 10AM", joined:false, servedToday:9,  totalPatients:1654, regId:"MCI-DL-2024-0201" },
+  { id:5, name:"Dr. Kavita Joshi",   spec:"Pediatrician",      clinic:"KidsCare Hospital",               addr:"56, Vasant Kunj, New Delhi",     dist:2.1, rating:4.9, reviews:543, queue:2,  avgTime:8,  status:"available", fee:500,  exp:15, av:"KJ", avCls:"av-pediatric",emoji:"👶", timings:"Mon–Sat: 9AM–1PM, 4–7PM", phone:"+91 54321 09876", about:"Dr. Kavita Joshi is a paediatrician and neonatologist with 15 years of experience. Trusted by thousands of families across Delhi.",                                          tags:["Vaccination","Growth","Fever","Newborn"],       lang:["English","Hindi","Gujarati"],nextSlot:"Today, 4:15 PM", joined:false, servedToday:18, totalPatients:4102, regId:"MCI-DL-2024-0301" },
+  { id:6, name:"Dr. Amit Verma",     spec:"Orthopedic",        clinic:"BoneWell Ortho Clinic",           addr:"89, Dwarka Sector 6, New Delhi", dist:2.7, rating:4.5, reviews:167, queue:0,  avgTime:10, status:"closed",    fee:700,  exp:14, av:"AV", avCls:"av-ortho",    emoji:"🦴", timings:"Mon–Sat: 6–9PM",          phone:"+91 43210 98765", about:"Dr. Amit Verma is an orthopaedic surgeon specialising in sports injuries, joint replacement, and spine surgery.",                                                          tags:["Knee Pain","Sports Injury","Joint","Spine"],    lang:["English","Hindi"],           nextSlot:"Today, 6:00 PM", joined:false, servedToday:6,  totalPatients:1235, regId:"MCI-DL-2024-0401" },
+  { id:7, name:"Dr. Neha Gupta",     spec:"ENT",               clinic:"ClearSound ENT Clinic",           addr:"34, Janakpuri, New Delhi",       dist:3.0, rating:4.7, reviews:214, queue:4,  avgTime:8,  status:"available", fee:550,  exp:11, av:"NG", avCls:"av-ent",      emoji:"👂", timings:"Mon–Sat: 10AM–2PM, 5–8PM",phone:"+91 32109 87654", about:"Dr. Neha Gupta is an ENT specialist with expertise in ear surgery, sinusitis treatment, and voice disorders.",                                                               tags:["Sinusitis","Hearing","Tonsils","Voice"],        lang:["English","Hindi"],           nextSlot:"Today, 5:15 PM", joined:false, servedToday:11, totalPatients:1789, regId:"MCI-DL-2024-0501" },
+  { id:8, name:"Dr. Vikram Nair",    spec:"Cardiologist",      clinic:"Heartbeat Cardiac Centre",        addr:"11, Greater Kailash, New Delhi", dist:3.4, rating:4.8, reviews:389, queue:5,  avgTime:15, status:"busy",      fee:1500, exp:25, av:"VN", avCls:"av-cardio",   emoji:"❤️", timings:"Mon–Thu: 11AM–4PM",       phone:"+91 21098 76543", about:"Dr. Vikram Nair is a senior cardiologist with 25 years of experience. Pioneer in minimally invasive cardiac procedures in India.",                                       tags:["Bypass","Stress Test","Holter","Pacemaker"],   lang:["English","Hindi","Malayalam"],nextSlot:"Tomorrow, 11AM", joined:false, servedToday:7,  totalPatients:2956, regId:"MCI-DL-2024-0601" },
+];
+
+const PAT_NOTIFS = [
+  { id:1, type:"queue", icon:"⏱️", title:"Almost your turn!", body:"Dr. Ananya Sharma — 1 patient ahead. ~7 min.", time:"2 min ago", read:false },
+  { id:2, type:"confirm", icon:"✅", title:"Queue Joined!", body:"Token #7 — SmileFirst Dental Studio.", time:"1 hr ago", read:false },
+  { id:3, type:"update", icon:"🟢", title:"Doctor Now Available", body:"Dr. Amit Verma has opened the queue.", time:"2 hr ago", read:true },
+  { id:4, type:"promo", icon:"💊", title:"Health Tip", body:"Annual checkup reminder — 3 doctors available nearby.", time:"1 day ago", read:true },
+];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const S = {
+  role: null,                       // 'patient' | 'doctor'
+  loggedDoctor: null,               // doctor object
+  doctors: JSON.parse(JSON.stringify(DOCTORS)),
+  // Patient state
+  patPage: 'home',
+  selectedDoc: null,
+  filter: 'All',
+  sort: 'distance',
+  search: '',
+  emergency: false,
+  userQueue: [],
+  selectedSlot: null,
+  queueMode: 'live',
+  // Doctor state
+  docTab: 'overview',
+};
+
+// ══════════════════════════════════════════
+//  ROUTING
+// ══════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); window.scrollTo(0,0); }
+}
+
+// ══════════════════════════════════════════
+//  LANDING → PATIENT ENTRY
+// ══════════════════════════════════════════
+function enterAsPatient() {
+  S.role = 'patient';
+  showPage('page-patient-app');
+  patGoTo('home');
+  startRealtime();
+}
+
+// ══════════════════════════════════════════
+//  DOCTOR LOGIN
+// ══════════════════════════════════════════
+function togglePwd() {
+  const f = document.getElementById('docPassword');
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+
+function doctorLogin() {
+  const btn = document.getElementById('docLoginBtn');
+  btn.textContent = 'Signing in…';
+  btn.style.opacity = '0.7';
+  setTimeout(() => {
+    // Demo: log in as Dr. Kapoor (index 1) by default
+    S.role = 'doctor';
+    S.loggedDoctor = JSON.parse(JSON.stringify(S.doctors[1]));
+    showPage('page-doctor-app');
+    initDoctorDash();
+    startRealtime();
+    showToast('👋 Welcome back, Dr. Kapoor!', 'success');
+    btn.textContent = 'Sign In to Dashboard';
+    btn.style.opacity = '1';
+  }, 1200);
+}
+
+function quickDoctorLogin(idx) {
+  S.role = 'doctor';
+  S.loggedDoctor = JSON.parse(JSON.stringify(S.doctors[idx]));
+  showPage('page-doctor-app');
+  initDoctorDash();
+  startRealtime();
+  showToast(`👋 Welcome, ${S.loggedDoctor.name}!`, 'success');
+}
+
+function doctorLogout() {
+  S.role = null;
+  S.loggedDoctor = null;
+  showPage('page-landing');
+}
+
+// ══════════════════════════════════════════
+//  DOCTOR DASHBOARD INIT
+// ══════════════════════════════════════════
+function initDoctorDash() {
+  const d = S.loggedDoctor;
+  document.getElementById('docDashName').textContent = d.name;
+  document.getElementById('docDashSpec').textContent = d.spec + ' · ' + d.clinic;
+  switchDocTab('overview', document.querySelector('.doc-tab[data-tab="overview"]'));
+}
+
+// ══════════════════════════════════════════
+//  DOCTOR TABS
+// ══════════════════════════════════════════
+function switchDocTab(tab, el) {
+  S.docTab = tab;
+  document.querySelectorAll('.doc-tab').forEach(b => {
+    b.classList.remove('chip-on'); b.classList.add('chip-off');
+  });
+  if (el) { el.classList.remove('chip-off'); el.classList.add('chip-on'); }
+  const fn = { overview:renderDocOverview, queue:renderDocQueue, appointments:renderDocAppts, analytics:renderDocAnalytics, profile:renderDocSettings };
+  if (fn[tab]) fn[tab]();
+}
+
+// ── OVERVIEW TAB ──────────────────────────
+function renderDocOverview() {
+  const d = getCurrentDoc();
+  const wait = calcWait(d);
+  const tc = document.getElementById('docTabContent');
+
+  tc.innerHTML = `
+    <!-- Status Banner -->
+    <div style="border-radius:20px; padding:20px; margin-bottom:16px; background:${statusGrad(d.status)}; border:1.5px solid ${statusBorderColor(d.status)};" class="fade-up">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div>
+          <div style="font-size:12px; font-weight:700; color:${statusTextColor(d.status)}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">Clinic Status</div>
+          <div style="font-size:22px; font-weight:900; color:${statusTextColor(d.status)};">${statusIcon(d.status)} ${cap(d.status)}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button onclick="setStatus('available')" class="btn-sm" style="background:${d.status==='available'?'#16A34A':'#F0FDF4'}; color:${d.status==='available'?'white':'#16A34A'}; border:1.5px solid #16A34A;">🟢 Open</button>
+          <button onclick="setStatus('busy')"      class="btn-sm" style="background:${d.status==='busy'?'#CA8A04':'#FFFBEB'}; color:${d.status==='busy'?'white':'#CA8A04'}; border:1.5px solid #CA8A04;">🟡 Busy</button>
+          <button onclick="setStatus('closed')"    class="btn-sm" style="background:${d.status==='closed'?'#DC2626':'#FEF2F2'}; color:${d.status==='closed'?'white':'#DC2626'}; border:1.5px solid #DC2626;">🔴 Close</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <span style="background:rgba(255,255,255,0.7); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600; color:#475569;">📍 ${d.clinic}</span>
+        <span style="background:rgba(255,255,255,0.7); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600; color:#475569;">⏱ ${d.timings.split(',')[0]}</span>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div class="stat-card fade-up d1">
+        <div style="font-size:11px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Queue Now</div>
+        <div style="font-size:40px; font-weight:900; color:#2563EB; line-height:1;" id="ov-queue">${d.queue}</div>
+        <div style="font-size:12px; color:#64748B; margin-top:4px;">patients waiting</div>
+      </div>
+      <div class="stat-card fade-up d2">
+        <div style="font-size:11px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Est. Wait</div>
+        <div style="font-size:40px; font-weight:900; color:#F59E0B; line-height:1;" id="ov-wait">${wait}</div>
+        <div style="font-size:12px; color:#64748B; margin-top:4px;">minutes</div>
+      </div>
+      <div class="stat-card fade-up d3">
+        <div style="font-size:11px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Served Today</div>
+        <div style="font-size:40px; font-weight:900; color:#10B981; line-height:1;">${d.servedToday}</div>
+        <div style="font-size:12px; color:#64748B; margin-top:4px;">patients done</div>
+      </div>
+      <div class="stat-card fade-up d4">
+        <div style="font-size:11px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Rating</div>
+        <div style="font-size:40px; font-weight:900; color:#F59E0B; line-height:1;">${d.rating}</div>
+        <div style="font-size:12px; color:#64748B; margin-top:4px;">⭐ (${d.reviews} reviews)</div>
+      </div>
+    </div>
+
+    <!-- Queue Control Card -->
+    <div class="card fade-up d3" style="padding:20px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:16px;">⚡ Queue Controls</div>
+      <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:16px;">
+        <button class="cbtn" style="background:#FEE2E2; color:#DC2626;" onclick="adj(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div style="text-align:center;">
+          <div style="font-size:56px; font-weight:900; color:#0F172A; line-height:1;" id="qcounter">${d.queue}</div>
+          <div style="font-size:13px; color:#94A3B8; margin-top:4px;">patients in queue</div>
+        </div>
+        <button class="cbtn" style="background:#DCFCE7; color:#16A34A;" onclick="adj(1)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="clearQueue()" class="btn-sm" style="flex:1; background:#FEF2F2; color:#DC2626; border:1.5px solid #FECACA;">🧹 Clear All</button>
+        <button onclick="adj(5); showToast('➕ 5 walk-ins added','info')" class="btn-sm" style="flex:1; background:#EFF6FF; color:#2563EB; border:1.5px solid #BFDBFE;">+5 Walk-in</button>
+        <button onclick="serveNext()" class="btn-sm" style="flex:1; background:#F0FDF4; color:#16A34A; border:1.5px solid #BBF7D0;">✅ Serve Next</button>
+      </div>
+    </div>
+
+    <!-- Avg Time Slider -->
+    <div class="card fade-up d4" style="padding:20px; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <span style="font-size:14px; font-weight:800; color:#0F172A;">⏱ Avg Consultation Time</span>
+        <span style="background:#2563EB; color:white; padding:5px 14px; border-radius:10px; font-size:14px; font-weight:700;" id="avgLbl">${d.avgTime} min</span>
+      </div>
+      <input type="range" min="3" max="30" value="${d.avgTime}" id="avgSlider" oninput="updateAvg(this.value)" style="width:100%; accent-color:#2563EB;" />
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8; margin-top:6px;"><span>3 min</span><span>30 min</span></div>
+    </div>
+
+    <!-- Today snapshot -->
+    <div class="card fade-up d5" style="padding:20px;">
+      <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:14px;">📋 Today's Snapshot</div>
+      ${genTodayRows(d)}
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function genTodayRows(d) {
+  const rows = genPatients(d);
+  return rows.map(p => `
+    <div class="pat-row">
+      <div style="width:34px; height:34px; border-radius:10px; background:${p.status==='current'?'#DBEAFE':p.status==='done'?'#DCFCE7':'#F1F5F9'}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:${p.status==='current'?'#2563EB':p.status==='done'?'#16A34A':'#64748B'}; flex-shrink:0;">#${p.token}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:700; color:#0F172A;">${p.name}</div>
+        <div style="font-size:11px; color:#94A3B8;">${p.reason} · ${p.time}</div>
+      </div>
+      <span style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px; background:${p.status==='done'?'#DCFCE7':p.status==='current'?'#DBEAFE':'#F1F5F9'}; color:${p.status==='done'?'#16A34A':p.status==='current'?'#2563EB':'#64748B'};">
+        ${p.status==='done'?'✓ Done':p.status==='current'?'● Now':'Waiting'}
+      </span>
+    </div>`).join('');
+}
+
+// ── QUEUE TAB ─────────────────────────────
+function renderDocQueue() {
+  const d = getCurrentDoc();
+  const tc = document.getElementById('docTabContent');
+  tc.innerHTML = `
+    <div class="fade-up" style="background:linear-gradient(135deg,#EFF6FF,#F0F9FF); border:1.5px solid #BFDBFE; border-radius:20px; padding:20px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <span style="font-size:16px; font-weight:800; color:#0F172A;">Live Queue</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="pdot" style="background:#10B981; width:8px; height:8px; animation:pulse-ring 1.5s ease-in-out infinite;"></span>
+          <span style="font-size:12px; font-weight:700; color:#16A34A;">LIVE</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px;">
+        <div style="flex:1; background:white; border-radius:14px; padding:16px; text-align:center;">
+          <div style="font-size:36px; font-weight:900; color:#2563EB;" id="qt-count">${d.queue}</div>
+          <div style="font-size:12px; color:#94A3B8;">In Queue</div>
+        </div>
+        <div style="flex:1; background:white; border-radius:14px; padding:16px; text-align:center;">
+          <div style="font-size:36px; font-weight:900; color:#F59E0B;">${calcWait(d)}</div>
+          <div style="font-size:12px; color:#94A3B8;">Min Wait</div>
+        </div>
+        <div style="flex:1; background:white; border-radius:14px; padding:16px; text-align:center;">
+          <div style="font-size:36px; font-weight:900; color:#10B981;">${d.servedToday}</div>
+          <div style="font-size:12px; color:#94A3B8;">Served</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Queue Controls -->
+    <div class="card fade-up d1" style="padding:20px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Manage Queue</div>
+      <div style="display:flex; align-items:center; justify-content:center; gap:24px; margin-bottom:18px;">
+        <button class="cbtn" style="background:#FEE2E2; color:#DC2626; width:56px; height:56px;" onclick="adj(-1)">−</button>
+        <div style="text-align:center;">
+          <div style="font-size:64px; font-weight:900; line-height:1;" id="qct2">${d.queue}</div>
+        </div>
+        <button class="cbtn" style="background:#DCFCE7; color:#16A34A; width:56px; height:56px;" onclick="adj(1)">+</button>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button onclick="serveNext()" style="padding:12px; border-radius:12px; border:none; background:#F0FDF4; color:#16A34A; font-weight:700; font-size:13px; cursor:pointer;">✅ Mark Served</button>
+        <button onclick="clearQueue()" style="padding:12px; border-radius:12px; border:none; background:#FEF2F2; color:#DC2626; font-weight:700; font-size:13px; cursor:pointer;">🧹 Clear Queue</button>
+        <button onclick="adj(1); showToast('Walk-in added','info')" style="padding:12px; border-radius:12px; border:none; background:#EFF6FF; color:#2563EB; font-weight:700; font-size:13px; cursor:pointer;">➕ Walk-in</button>
+        <button onclick="callNext()" style="padding:12px; border-radius:12px; border:none; background:#FDF4FF; color:#9333EA; font-weight:700; font-size:13px; cursor:pointer;">📢 Call Next</button>
+      </div>
+    </div>
+
+    <!-- Waiting List -->
+    <div class="card fade-up d2" style="padding:20px;">
+      <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Current Waiting List</div>
+      ${genQueueList(d)}
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function genQueueList(d) {
+  if (d.queue === 0) return `<div style="text-align:center; padding:24px; color:#94A3B8;"><div style="font-size:36px; margin-bottom:8px;">🎉</div><div style="font-weight:600;">Queue is empty!</div></div>`;
+  let html = '';
+  for (let i = 1; i <= Math.min(d.queue, 8); i++) {
+    const names = ['Rahul K.','Sneha P.','Arun M.','Deepa N.','Vivek J.','Meena R.','Arjun S.','Pooja T.'];
+    const reasons = ['Checkup','Follow-up','Fever','BP Check','Prescription','Consultation','Test Review','Vaccination'];
+    html += `
+      <div class="pat-row">
+        <div style="width:34px; height:34px; border-radius:10px; background:${i===1?'#DBEAFE':'#F1F5F9'}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:${i===1?'#2563EB':'#64748B'}; flex-shrink:0;">#${i}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px; font-weight:700;">${names[i-1]||'Patient '+i}</div>
+          <div style="font-size:11px; color:#94A3B8;">${reasons[i-1]||'General'} · ~${i * d.avgTime} min wait</div>
+        </div>
+        ${i===1?`<span style="font-size:11px; background:#DBEAFE; color:#2563EB; padding:4px 10px; border-radius:8px; font-weight:700;">● Current</span>`:''}
+      </div>`;
+  }
+  if (d.queue > 8) html += `<div style="text-align:center; padding:10px; font-size:12px; color:#94A3B8; font-weight:600;">+${d.queue-8} more patients waiting</div>`;
+  return html;
+}
+
+// ── APPOINTMENTS TAB ──────────────────────
+function renderDocAppts() {
+  const d = getCurrentDoc();
+  const tc = document.getElementById('docTabContent');
+  const slots = genAllSlots();
+  tc.innerHTML = `
+    <div class="card fade-up" style="padding:20px; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <span style="font-size:16px; font-weight:800;">Today's Appointments</span>
+        <span style="background:#EFF6FF; color:#2563EB; font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px;">${slots.filter(s=>s.booked).length} booked</span>
+      </div>
+      ${slots.map(s => `
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #F1F5F9;">
+        <div style="width:56px; text-align:center; flex-shrink:0;">
+          <div style="font-size:13px; font-weight:800; color:#0F172A;">${s.time}</div>
+          <div style="font-size:10px; color:#94A3B8;">${s.period}</div>
+        </div>
+        <div style="flex:1; padding:10px 14px; border-radius:12px; background:${s.booked?'#EFF6FF':'#F8FAFC'}; border:1px solid ${s.booked?'#BFDBFE':'#E2E8F0'};">
+          ${s.booked ? `
+            <div style="font-size:13px; font-weight:700; color:#0F172A;">${s.patName}</div>
+            <div style="font-size:11px; color:#64748B;">${s.reason}</div>
+          ` : `<div style="font-size:12px; color:#CBD5E1; font-weight:600;">Available</div>`}
+        </div>
+        ${s.booked ? `<button onclick="showToast('📞 Calling ${s.patName}…','info')" style="width:34px; height:34px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; font-size:16px;">📞</button>` : `<button onclick="showToast('Block slot clicked','info')" style="width:34px; height:34px; border-radius:10px; border:1.5px dashed #E2E8F0; background:none; cursor:pointer; font-size:16px; color:#CBD5E1;">+</button>`}
+      </div>`).join('')}
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+// ── ANALYTICS TAB ─────────────────────────
+function renderDocAnalytics() {
+  const d = getCurrentDoc();
+  const tc = document.getElementById('docTabContent');
+  const weekData = [9,14,11,18,15,20,d.servedToday];
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Today'];
+  const maxVal = Math.max(...weekData);
+
+  tc.innerHTML = `
+    <div class="card fade-up" style="padding:20px; margin-bottom:16px;">
+      <div style="font-size:16px; font-weight:800; margin-bottom:4px;">This Week</div>
+      <div style="font-size:12px; color:#94A3B8; margin-bottom:20px;">Patients served per day</div>
+      <div style="display:flex; align-items:flex-end; gap:8px; height:120px;">
+        ${weekData.map((v,i) => `
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+          <div style="font-size:10px; font-weight:700; color:${i===6?'#2563EB':'#94A3B8'};">${v}</div>
+          <div style="width:100%; border-radius:6px 6px 0 0; background:${i===6?'linear-gradient(180deg,#2563EB,#1D4ED8)':'#E2E8F0'}; height:${Math.round((v/maxVal)*90)+10}px; transition:all 0.6s ease; animation:fadeInUp 0.5s ease ${i*0.08}s both;"></div>
+          <div style="font-size:10px; color:${i===6?'#2563EB':'#94A3B8'}; font-weight:600;">${days[i]}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      ${[
+        {label:'Total Patients', val:d.totalPatients.toLocaleString(), icon:'👥', color:'#2563EB'},
+        {label:'Avg. Rating', val:d.rating+'★', icon:'⭐', color:'#F59E0B'},
+        {label:'Avg. Queue/Day', val:'12', icon:'⏱', color:'#8B5CF6'},
+        {label:'Repeat Patients', val:'68%', icon:'🔄', color:'#10B981'},
+      ].map(s => `
+      <div class="stat-card fade-up">
+        <div style="font-size:24px; margin-bottom:8px;">${s.icon}</div>
+        <div style="font-size:26px; font-weight:900; color:${s.color};">${s.val}</div>
+        <div style="font-size:12px; color:#94A3B8; margin-top:4px;">${s.label}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="card fade-up d3" style="padding:20px;">
+      <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Common Visit Reasons</div>
+      ${[['General Checkup',42],['Follow-up',28],['Prescription',18],['Emergency',8],['Other',4]].map(([label,pct]) => `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+          <span style="font-weight:600; color:#475569;">${label}</span>
+          <span style="font-weight:700; color:#0F172A;">${pct}%</span>
+        </div>
+        <div class="qbar"><div class="qfill" style="width:${pct}%; background:linear-gradient(90deg,#2563EB,#0284C7);"></div></div>
+      </div>`).join('')}
+    </div>
+  `;
+}
+
+// ── SETTINGS TAB ──────────────────────────
+function renderDocSettings() {
+  const d = getCurrentDoc();
+  const tc = document.getElementById('docTabContent');
+  tc.innerHTML = `
+    <!-- Profile Card -->
+    <div class="card fade-up" style="padding:24px; margin-bottom:16px; text-align:center;">
+      <div class="avatar ${d.avCls}" style="width:80px; height:80px; border-radius:24px; font-size:28px; margin:0 auto 14px;">${d.av}</div>
+      <div style="font-size:20px; font-weight:900; color:#0F172A;">${d.name}</div>
+      <div style="font-size:14px; color:#2563EB; font-weight:600; margin:4px 0;">${d.spec}</div>
+      <div style="font-size:13px; color:#64748B;">${d.clinic}</div>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap;">
+        <span style="background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:600; padding:5px 12px; border-radius:999px;">${d.exp} yrs exp</span>
+        <span style="background:#F0FDF4; color:#16A34A; font-size:11px; font-weight:600; padding:5px 12px; border-radius:999px;">₹${d.fee}/consult</span>
+        <span style="background:#FDF4FF; color:#9333EA; font-size:11px; font-weight:600; padding:5px 12px; border-radius:999px;">⭐ ${d.rating}</span>
+      </div>
+    </div>
+
+    <!-- Settings Options -->
+    ${[
+      {icon:'🏥', label:'Clinic Information', sub:'Name, address, timings'},
+      {icon:'💳', label:'Fees & Billing', sub:'Consultation fee, payment'},
+      {icon:'🔔', label:'Notification Preferences', sub:'Queue alerts, reminders'},
+      {icon:'🌐', label:'Languages Spoken', sub:d.lang.join(', ')},
+      {icon:'📋', label:'Medical Expertise', sub:d.tags.join(', ')},
+      {icon:'🔒', label:'Account & Security', sub:'Password, 2FA'},
+      {icon:'📞', label:'Support', sub:'24/7 doctor support line'},
+    ].map(item => `
+    <div onclick="showToast('⚙️ ${item.label} — coming soon!','info')" style="background:white; border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:10px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.2s;" class="fade-up card-hover">
+      <div style="width:42px; height:42px; border-radius:12px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">${item.icon}</div>
+      <div style="flex:1;">
+        <div style="font-size:14px; font-weight:700; color:#0F172A;">${item.label}</div>
+        <div style="font-size:12px; color:#94A3B8;">${item.sub}</div>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`).join('')}
+
+    <button onclick="doctorLogout()" style="width:100%; padding:16px; border-radius:14px; border:1.5px solid #FECACA; background:#FEF2F2; color:#DC2626; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;">
+      🚪 Logout from Dashboard
+    </button>
+  `;
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════
+//  DOCTOR QUEUE ACTIONS
+// ══════════════════════════════════════════
+function getCurrentDoc() {
+  const master = S.doctors.find(d => d.id === S.loggedDoctor.id);
+  if (master) S.loggedDoctor = JSON.parse(JSON.stringify(master));
+  return S.loggedDoctor;
+}
+
+function adj(delta) {
+  const d = S.doctors.find(x => x.id === S.loggedDoctor.id);
+  if (!d) return;
+  d.queue = Math.max(0, Math.min(20, d.queue + delta));
+  S.loggedDoctor.queue = d.queue;
+
+  // Auto-status
+  if (d.queue === 0 && d.status !== 'closed') d.status = 'available';
+  else if (d.queue >= 6 && d.status === 'available') d.status = 'busy';
+  S.loggedDoctor.status = d.status;
+
+  // Update all visible counters
+  ['qcounter','qct2','qt-count','ov-queue'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = d.queue; el.style.animation='none'; void el.offsetWidth; el.style.animation='countPop 0.3s ease'; }
+  });
+  const we = document.getElementById('ov-wait');
+  if (we) we.textContent = calcWait(d);
+
+  showToast(delta > 0 ? `➕ Added. Queue: ${d.queue}` : d.queue === 0 ? '✅ Patient served. Queue empty!' : `✅ Served. Queue: ${d.queue}`, delta > 0 ? 'info' : 'success');
+}
+
+function clearQueue() {
+  showModal(`
+    <div style="padding:24px; text-align:center;">
+      <div style="font-size:48px; margin-bottom:12px;">🧹</div>
+      <h3 style="font-size:18px; font-weight:800; color:#0F172A; margin:0 0 8px;">Clear Entire Queue?</h3>
+      <p style="font-size:14px; color:#64748B; margin:0 0 24px;">This will reset queue to 0. All waiting patients will be notified.</p>
+      <button onclick="doClear(); closeModal();" class="btn-red" style="margin-bottom:10px;">Yes, Clear Queue</button>
+      <button onclick="closeModal()" class="btn-white">Cancel</button>
+    </div>
+  `);
+}
+
+function doClear() {
+  const d = S.doctors.find(x => x.id === S.loggedDoctor.id);
+  if (d) { d.queue = 0; d.status = 'available'; S.loggedDoctor.queue = 0; S.loggedDoctor.status = 'available'; }
+  ['qcounter','qct2','qt-count','ov-queue'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 0; });
+  showToast('🧹 Queue cleared!', 'success');
+  if (S.docTab === 'queue') renderDocQueue();
+  if (S.docTab === 'overview') renderDocOverview();
+}
+
+function serveNext() {
+  adj(-1);
+  const d = S.doctors.find(x => x.id === S.loggedDoctor.id);
+  if (d) d.servedToday++;
+  S.loggedDoctor.servedToday = (S.loggedDoctor.servedToday||0) + 1;
+  showToast('✅ Patient served & removed from queue', 'success');
+}
+
+function callNext() {
+  showToast('📢 Next patient called via notification!', 'success');
+}
+
+function setStatus(status) {
+  const d = S.doctors.find(x => x.id === S.loggedDoctor.id);
+  if (d) { d.status = status; S.loggedDoctor.status = status; }
+  showToast(`📍 Status → ${cap(status)}`, 'success');
+  renderDocOverview();
+}
+
+function updateAvg(val) {
+  const d = S.doctors.find(x => x.id === S.loggedDoctor.id);
+  if (d) { d.avgTime = parseInt(val); S.loggedDoctor.avgTime = parseInt(val); }
+  const lbl = document.getElementById('avgLbl');
+  if (lbl) lbl.textContent = val + ' min';
+  const we = document.getElementById('ov-wait');
+  if (we) we.textContent = calcWait(S.loggedDoctor);
+}
+
+function showDocNotif() {
+  showToast('🔔 No new notifications', 'info');
+}
+
+// ══════════════════════════════════════════
+//  PATIENT NAV & PAGES
+// ══════════════════════════════════════════
+function patGoTo(dest) {
+  S.patPage = dest;
+  // Reset area visibility
+  ['home','detail','queue','confirm'].forEach(id => {
+    const el = document.getElementById('pat-area-'+id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Update bottom nav
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('on'));
+  const navMap = { home:'home', myqueue:'myqueue', notifications:'notifications', profile:'profile' };
+  const navId = 'pnav-' + (navMap[dest] || dest);
+  const navEl = document.getElementById(navId);
+  if (navEl) navEl.classList.add('on');
+
+  // Render
+  const renders = {
+    home: () => { document.getElementById('pat-area-home').style.display='block'; renderPatHome(); },
+    detail: () => { document.getElementById('pat-area-detail').style.display='block'; },
+    queue: () => { document.getElementById('pat-area-queue').style.display='block'; },
+    confirm: () => { document.getElementById('pat-area-confirm').style.display='block'; },
+    myqueue: () => renderMyQueue(),
+    notifications: () => renderPatNotifs(),
+    profile: () => renderPatProfile(),
+  };
+  if (renders[dest]) renders[dest]();
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════
+//  PATIENT HOME
+// ══════════════════════════════════════════
+function renderPatHome() {
+  const area = document.getElementById('pat-area-home');
+  area.innerHTML = `
+  <div style="max-width:520px; margin:0 auto; padding:16px 16px 100px;">
+
+    <!-- Location Row -->
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; font-size:13px; color:#64748B;">
+      <span class="pdot" style="background:#10B981; width:8px; height:8px;"></span>
+      <span id="locText">📍 Connaught Place, New Delhi</span>
+      <button onclick="changeLocation()" style="color:#2563EB; font-weight:700; background:none; border:none; font-size:13px; cursor:pointer;">Change</button>
+    </div>
+
+    <!-- Search -->
+    <div style="position:relative; margin-bottom:12px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:14px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="patSearch" placeholder="Search doctors, specialties, clinics…" class="inp" style="padding-left:42px; padding-right:44px;" oninput="onSearch()" />
+      <button onclick="voiceSearch()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,#2563EB,#0284C7); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+    </div>
+
+    <!-- Emergency Toggle -->
+    <div style="background:linear-gradient(135deg,#FFF1F2,#FEF2F2); border:1.5px solid #FECACA; border-radius:14px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:16px;">⚡</span>
+        <div>
+          <div style="font-size:13px; font-weight:700; color:#DC2626;">Emergency Mode</div>
+          <div style="font-size:11px; color:#F87171;">Only show available doctors</div>
+        </div>
+      </div>
+      <label class="sw" style="transform:scale(0.85);">
+        <input type="checkbox" id="emToggle" onchange="toggleEM()" ${S.emergency?'checked':''}>
+        <span class="sl"></span>
+      </label>
+    </div>
+
+    <!-- Live Ticker -->
+    <div style="background:#EFF6FF; border-radius:14px; padding:12px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px; overflow:hidden;">
+      <div style="background:#FEE2E2; color:#DC2626; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; display:flex; align-items:center; gap:4px; flex-shrink:0;">
+        <span class="pdot" style="background:#DC2626; width:6px; height:6px;"></span> LIVE
+      </div>
+      <div class="ticker-wrap" style="flex:1;">
+        <div class="ticker-inner" style="font-size:12px; color:#2563EB; font-weight:600;">
+          &nbsp;&nbsp;Dr. Sharma — 3 waiting (21 min) &nbsp;•&nbsp; Dr. Kapoor — Available now! &nbsp;•&nbsp; Dr. Joshi — 2 waiting (16 min) &nbsp;•&nbsp; Dr. Gupta — 4 waiting (32 min) &nbsp;•&nbsp; Dr. Sharma — 3 waiting (21 min) &nbsp;•&nbsp; Dr. Kapoor — Available now! &nbsp;•&nbsp; Dr. Joshi — 2 waiting (16 min)&nbsp;&nbsp;
+        </div>
+      </div>
+    </div>
+
+    <!-- Specialties -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Specialties</div>
+      <div class="sx" style="display:flex; gap:8px; padding-bottom:2px;" id="specChips">
+        ${['All','General Physician','Dentist','Cardiologist','Dermatologist','Orthopedic','Pediatrician','ENT'].map((s,i) => `
+        <div class="chip ${s===S.filter?'chip-on':'chip-off'}" onclick="filterSpec(this,'${s}')">
+          ${['🔍','🩺','🦷','❤️','✨','🦴','👶','👂'][i]} ${s==='All'?'All':s.replace(' Physician','').replace('ologist','').replace('ician','')}
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Sort + Count -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <span style="font-size:15px; font-weight:800; color:#0F172A;" id="docCountLbl">Nearby Doctors</span>
+      <select id="sortSel" onchange="onSort()" style="font-size:12px; border:1.5px solid var(--border); border-radius:10px; padding:8px 12px; background:white; color:#475569; outline:none; cursor:pointer; font-weight:600;">
+        <option value="distance">📍 Nearest</option>
+        <option value="wait">⏱ Shortest Wait</option>
+        <option value="rating">⭐ Top Rated</option>
+        <option value="queue">👥 Least Queue</option>
+      </select>
+    </div>
+
+    <!-- Doctor Grid -->
+    <div id="docGrid"></div>
+
+    <!-- Stats Row -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:20px;">
+      <div class="card" style="padding:14px; text-align:center;">
+        <div style="font-size:22px; font-weight:900; color:#2563EB;">${S.doctors.length}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Nearby</div>
+      </div>
+      <div class="card" style="padding:14px; text-align:center;">
+        <div style="font-size:22px; font-weight:900; color:#10B981;">${S.doctors.filter(d=>d.status==='available').length}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Available</div>
+      </div>
+      <div class="card" style="padding:14px; text-align:center;">
+        <div style="font-size:22px; font-weight:900; color:#F59E0B;">4.7★</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Avg Rating</div>
+      </div>
+    </div>
+  </div>
+  `;
+  renderDoctorCards();
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════
+//  DOCTOR CARDS (PATIENT VIEW)
+// ══════════════════════════════════════════
+function renderDoctorCards() {
+  const grid = document.getElementById('docGrid');
+  if (!grid) return;
+  const list = getFilteredList();
+
+  const lbl = document.getElementById('docCountLbl');
+  if (lbl) lbl.textContent = `${list.length} Doctor${list.length!==1?'s':''} Nearby`;
+
+  if (list.length === 0) {
+    grid.innerHTML = `<div style="text-align:center; padding:48px 0;"><div style="font-size:48px; margin-bottom:12px;">🔍</div><div style="font-size:15px; font-weight:700; color:#475569; margin-bottom:6px;">No doctors found</div><div style="font-size:13px; color:#94A3B8;">Try changing filters or search</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((doc, i) => {
+    const wait = calcWait(doc);
+    const qpct = Math.min(100, (doc.queue/15)*100);
+    const qcol = doc.status==='closed'?'#94A3B8':doc.queue===0?'#10B981':doc.queue<=3?'#10B981':doc.queue<=7?'#F59E0B':'#EF4444';
+    const qbg  = doc.status==='closed'?'#F8FAFC':doc.queue===0?'#F0FDF4':doc.queue<=3?'#F0FDF4':doc.queue<=7?'#FFFBEB':'#FFF1F2';
+    return `
+    <div class="card card-hover fade-up" style="margin-bottom:14px; animation-delay:${i*0.06}s; opacity:0; animation-fill-mode:forwards;" onclick="openDocDetail(${doc.id})">
+      <div style="padding:18px;">
+        <!-- Header Row -->
+        <div style="display:flex; gap:14px; margin-bottom:14px;">
+          <div class="avatar ${doc.avCls}" style="width:56px; height:56px; font-size:18px; border-radius:16px;">${doc.av}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:start; justify-content:space-between; gap:8px;">
+              <div style="min-width:0;">
+                <div style="font-size:15px; font-weight:800; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${doc.name}</div>
+                <div style="font-size:13px; color:#2563EB; font-weight:600; margin-top:2px;">${doc.spec}</div>
+              </div>
+              <span style="flex-shrink:0; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;" class="${statusCls(doc.status)}">${statusIcon(doc.status)} ${cap(doc.status)}</span>
+            </div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏥 ${doc.clinic}</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px;">
+              <span style="color:#64748B;">⭐ <strong style="color:#0F172A;">${doc.rating}</strong> <span style="color:#94A3B8;">(${doc.reviews})</span></span>
+              <span style="color:#CBD5E1;">|</span>
+              <span style="color:#64748B;">📍 ${doc.dist} km</span>
+              <span style="color:#CBD5E1;">|</span>
+              <span style="color:#64748B;">₹${doc.fee}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Strip -->
+        <div style="background:${qbg}; border-radius:14px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:7px;">
+            <span style="font-size:11px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.05em;">LIVE QUEUE</span>
+            <span style="font-size:11px; font-weight:700; color:${qcol};">${doc.status==='closed'?'Closed':doc.queue===0?'No Wait':doc.queue<=3?'Short Queue':doc.queue<=7?'Moderate':'Long Queue'}</span>
+          </div>
+          <div class="qbar" style="margin-bottom:7px;"><div class="qfill" style="width:${qpct}%; background:${qcol};"></div></div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="pdot" style="background:${qcol}; width:7px; height:7px;"></span>
+              <span style="font-size:12px; color:#64748B;">${doc.status==='closed'?'Opens later':`${doc.queue} patient${doc.queue!==1?'s':''} waiting`}</span>
+            </div>
+            ${doc.status!=='closed'?`<span style="font-size:12px; font-weight:800; color:#0F172A;">⏱ ~${wait} min</span>`:`<span style="font-size:11px; color:#94A3B8;">Opens 6 PM</span>`}
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:flex; gap:8px;">
+          ${doc.status!=='closed'?`
+          <button onclick="event.stopPropagation(); quickJoinQ(${doc.id})" style="flex:1; padding:11px; border-radius:11px; border:none; background:linear-gradient(135deg,#2563EB,#1D4ED8); color:white; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 3px 12px rgba(37,99,235,0.25);">
+            ${doc.joined?'✓ Joined':'+ Join Queue'}
+          </button>
+          <button onclick="event.stopPropagation(); openBookQ(${doc.id})" style="padding:11px 16px; border-radius:11px; border:1.5px solid var(--border); background:white; color:#475569; font-size:13px; font-weight:600; cursor:pointer;">
+            📅
+          </button>` : `
+          <button style="flex:1; padding:11px; border-radius:11px; border:1.5px solid var(--border); background:#F8FAFC; color:#94A3B8; font-size:13px; font-weight:600; cursor:not-allowed;" disabled>
+            Closed — Opens 6 PM
+          </button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  PATIENT DETAIL PAGE
+// ══════════════════════════════════════════
+function openDocDetail(id) {
+  S.selectedDoc = S.doctors.find(d => d.id === id);
+  const doc = S.selectedDoc;
+  const area = document.getElementById('pat-area-detail');
+  const wait = calcWait(doc);
+  const qcol = doc.status==='closed'?'#94A3B8':doc.queue===0?'#10B981':doc.queue<=3?'#10B981':doc.queue<=7?'#F59E0B':'#EF4444';
+
+  area.innerHTML = `
+  <div style="max-width:520px; margin:0 auto;">
+    <!-- Back Bar -->
+    <div style="position:sticky; top:61px; z-index:50; background:rgba(255,255,255,0.94); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; align-items:center; gap:12px;">
+      <button onclick="patGoTo('home')" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span style="font-size:15px; font-weight:800; color:#0F172A; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${doc.name}</span>
+      <button onclick="shareDoc()" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+    </div>
+
+    <div style="padding:16px 16px 100px;">
+
+      <!-- Hero -->
+      <div style="display:flex; gap:16px; margin-bottom:20px;" class="fade-up">
+        <div class="avatar ${doc.avCls}" style="width:80px; height:80px; border-radius:22px; font-size:26px; flex-shrink:0;">${doc.av}</div>
+        <div style="flex:1;">
+          <h1 style="font-size:20px; font-weight:900; color:#0F172A; margin:0 0 4px;">${doc.name}</h1>
+          <div style="font-size:14px; color:#2563EB; font-weight:700; margin-bottom:6px;">${doc.spec}</div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#64748B; flex-wrap:wrap;">
+            <span>⭐ <strong style="color:#0F172A;">${doc.rating}</strong> (${doc.reviews})</span>
+            <span style="color:#CBD5E1;">|</span>
+            <span>${doc.exp} yrs exp</span>
+            <span style="color:#CBD5E1;">|</span>
+            <span>₹${doc.fee}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Queue Stats -->
+      <div style="background:linear-gradient(135deg,#EFF6FF,#F0F9FF); border:1.5px solid #BFDBFE; border-radius:20px; padding:18px; margin-bottom:16px;" class="fade-up d1">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="background:#FEE2E2; color:#DC2626; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; display:flex; align-items:center; gap:4px;">
+              <span class="pdot" style="background:#DC2626; width:6px; height:6px;"></span> LIVE
+            </div>
+            <span style="font-size:13px; font-weight:700; color:#0F172A;">Queue Status</span>
+          </div>
+          <span style="font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px;" class="${statusCls(doc.status)}">${statusIcon(doc.status)} ${cap(doc.status)}</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div style="background:white; border-radius:14px; padding:12px; text-align:center;">
+            <div style="font-size:28px; font-weight:900; color:#2563EB;">${doc.queue}</div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:3px;">In Queue</div>
+          </div>
+          <div style="background:white; border-radius:14px; padding:12px; text-align:center;">
+            <div style="font-size:28px; font-weight:900; color:#F59E0B;">${wait}</div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:3px;">Min Wait</div>
+          </div>
+          <div style="background:white; border-radius:14px; padding:12px; text-align:center;">
+            <div style="font-size:28px; font-weight:900; color:#10B981;">${doc.avgTime}</div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:3px;">Min/Patient</div>
+          </div>
+        </div>
+        <div class="qbar"><div class="qfill" style="width:${Math.min(100,(doc.queue/15)*100)}%; background:${qcol};"></div></div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8; margin-top:5px;"><span>Empty</span><span>Full (15 patients)</span></div>
+      </div>
+
+      <!-- Quick Info Grid -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;" class="fade-up d2">
+        ${[
+          {icon:'🕐', label:'Timings', val:doc.timings.split(',')[0]},
+          {icon:'📅', label:'Next Slot', val:doc.nextSlot},
+          {icon:'📍', label:'Distance', val:doc.dist+' km away'},
+          {icon:'📞', label:'Phone', val:doc.phone.slice(0,14)+'…'},
+        ].map(i => `
+        <div class="card" style="padding:12px; display:flex; align-items:center; gap:10px;">
+          <div style="font-size:20px; flex-shrink:0;">${i.icon}</div>
+          <div>
+            <div style="font-size:10px; color:#94A3B8; font-weight:600;">${i.label}</div>
+            <div style="font-size:12px; font-weight:700; color:#0F172A; margin-top:2px;">${i.val}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+
+      <!-- About -->
+      <div class="card fade-up d2" style="padding:18px; margin-bottom:14px;">
+        <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:10px;">About</div>
+        <p style="font-size:13px; color:#475569; line-height:1.7; margin:0;">${doc.about}</p>
+      </div>
+
+      <!-- Tags -->
+      <div class="card fade-up d3" style="padding:18px; margin-bottom:14px;">
+        <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:10px;">Expertise</div>
+        <div style="display:flex; flex-wrap:wrap; gap:7px;">
+          ${doc.tags.map(t => `<span style="background:#EFF6FF; color:#2563EB; font-size:12px; font-weight:600; padding:5px 12px; border-radius:999px;">${t}</span>`).join('')}
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="map-stub fade-up d4" style="height:140px; margin-bottom:14px;" onclick="showToast('🗺️ Maps integration coming soon!','info')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        <div style="font-size:13px; font-weight:700; color:#3B82F6;">${doc.clinic}</div>
+        <div style="font-size:11px; color:#60A5FA;">${doc.addr}</div>
+        <span style="background:#DBEAFE; color:#2563EB; font-size:11px; font-weight:600; padding:4px 12px; border-radius:999px;">Tap to open in Maps</span>
+      </div>
+
+      <!-- Reviews -->
+      <div class="fade-up d4" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-size:14px; font-weight:800; color:#0F172A;">Patient Reviews</span>
+          <span style="font-size:13px; color:#2563EB; font-weight:700; cursor:pointer;">See all →</span>
+        </div>
+        ${genReviews().map(r => `
+        <div class="card" style="padding:14px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:32px; height:32px; border-radius:999px; background:#DBEAFE; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#2563EB;">${r.init}</div>
+              <span style="font-size:13px; font-weight:700; color:#0F172A;">${r.name}</span>
+            </div>
+            <span style="color:#FCD34D; font-size:13px;">${'★'.repeat(r.stars)}<span style="color:#E2E8F0;">${'★'.repeat(5-r.stars)}</span></span>
+          </div>
+          <p style="font-size:12px; color:#475569; margin:0; line-height:1.6;">${r.text}</p>
+          <div style="font-size:11px; color:#94A3B8; margin-top:6px;">${r.date}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- CTA Buttons -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${doc.status!=='closed'?`
+        <button onclick="openQueueScreen(${doc.id},'live')" class="btn-blue" style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Join Live Queue — ${doc.queue} waiting (~${wait} min)
+        </button>
+        <button onclick="openQueueScreen(${doc.id},'book')" class="btn-white" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          📅 Book a Time Slot
+        </button>` : `
+        <button class="btn-white" style="opacity:0.5; cursor:not-allowed;" disabled>🔒 Clinic Currently Closed</button>
+        <button onclick="openQueueScreen(${doc.id},'book')" class="btn-blue">📅 Book Advance Slot</button>`}
+      </div>
+    </div>
+  </div>`;
+
+  S.patPage = 'detail';
+  ['home','queue','confirm'].forEach(id => { const el=document.getElementById('pat-area-'+id); if(el) el.style.display='none'; });
+  area.style.display = 'block';
+  window.scrollTo(0,0);
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════
+//  PATIENT QUEUE SCREEN
+// ══════════════════════════════════════════
+function openQueueScreen(id, mode) {
+  S.queueMode = mode;
+  S.selectedDoc = S.doctors.find(d => d.id === id);
+  S.selectedSlot = null;
+  const doc = S.selectedDoc;
+  const wait = calcWait(doc);
+  const area = document.getElementById('pat-area-queue');
+  const slots = genSlots();
+
+  area.innerHTML = `
+  <div style="max-width:520px; margin:0 auto;">
+    <!-- Back Bar -->
+    <div style="position:sticky; top:61px; z-index:50; background:rgba(255,255,255,0.94); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; align-items:center; gap:12px;">
+      <button onclick="openDocDetail(${doc.id})" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span style="font-size:15px; font-weight:800; color:#0F172A;">${mode==='live'?'Join Live Queue':'Book a Slot'}</span>
+    </div>
+
+    <div style="padding:16px 16px 100px;">
+
+      <!-- Doctor Mini -->
+      <div style="background:#EFF6FF; border-radius:16px; padding:14px; margin-bottom:16px; display:flex; align-items:center; gap:12px;" class="fade-up">
+        <div class="avatar ${doc.avCls}" style="width:48px; height:48px; border-radius:14px; font-size:16px; flex-shrink:0;">${doc.av}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:800; color:#0F172A;">${doc.name}</div>
+          <div style="font-size:12px; color:#64748B;">${doc.spec} · ${doc.clinic}</div>
+        </div>
+        <span style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;" class="${statusCls(doc.status)}">${cap(doc.status)}</span>
+      </div>
+
+      ${mode==='live'?`
+      <!-- Live Status -->
+      <div class="card fade-up d1" style="padding:18px; margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Current Queue</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:900; color:#2563EB;">${doc.queue}</div>
+            <div style="font-size:11px; color:#94A3B8;">Ahead</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:900; color:#F59E0B;">${wait}</div>
+            <div style="font-size:11px; color:#94A3B8;">Min Wait</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:900; color:#10B981;">${doc.avgTime}</div>
+            <div style="font-size:11px; color:#94A3B8;">Min/Visit</div>
+          </div>
+        </div>
+        <div style="background:#EFF6FF; border-radius:12px; padding:12px; font-size:13px; color:#1D4ED8; font-weight:600;">
+          💡 Your slot around <strong>${getETA(wait)}</strong>
+        </div>
+      </div>` : `
+      <!-- Slot Picker -->
+      <div class="card fade-up d1" style="padding:18px; margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Select Time Slot</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" id="slotGrid">
+          ${slots.map((s,i) => `
+          <button class="slot-btn" data-time="${s.time}" data-avail="${s.avail}" onclick="pickSlot(this,'${s.time}',${s.avail})"
+            style="padding:12px 6px; border-radius:12px; border:1.5px solid ${s.avail?'var(--border)':'#F1F5F9'}; background:${s.avail?'white':'#FAFAFA'}; cursor:${s.avail?'pointer':'not-allowed'}; opacity:${s.avail?1:0.45}; transition:all 0.18s;">
+            <div style="font-size:13px; font-weight:700; color:${s.avail?'#0F172A':'#94A3B8'};">${s.time}</div>
+            <div style="font-size:10px; color:${s.avail?'#10B981':'#CBD5E1'}; margin-top:3px; font-weight:600;">${s.avail?'✓ Free':'Booked'}</div>
+          </button>`).join('')}
+        </div>
+      </div>`}
+
+      <!-- Patient Form -->
+      <div class="card fade-up d2" style="padding:18px; margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:14px;">Your Details</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748B; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Full Name</label>
+            <input type="text" class="inp" id="pName" value="Rahul Kumar" placeholder="Your name" />
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748B; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Phone</label>
+            <input type="tel" class="inp" id="pPhone" value="+91 98765 43210" placeholder="+91 xxxxx xxxxx" />
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748B; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Reason for Visit</label>
+            <select class="inp" id="pReason">
+              <option>General Checkup</option>
+              <option>Follow-up</option>
+              <option>Specific Concern</option>
+              <option>Prescription Renewal</option>
+              <option>Emergency</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748B; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Notes (optional)</label>
+            <textarea class="inp" id="pNotes" style="height:72px; resize:none;" placeholder="Any symptoms or concerns…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fee -->
+      <div class="card fade-up d3" style="padding:18px; margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:12px;">Fee Summary</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+          <div style="display:flex; justify-content:space-between;"><span style="color:#64748B;">Consultation Fee</span><span style="font-weight:700;">₹${doc.fee}</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#64748B;">Platform Fee</span><span style="font-weight:700; color:#10B981;">FREE</span></div>
+          <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; font-size:14px; font-weight:800;"><span>Total (pay at clinic)</span><span style="color:#2563EB;">₹${doc.fee}</span></div>
+        </div>
+      </div>
+
+      <!-- Confirm -->
+      <button onclick="confirmQ('${mode}')" class="btn-blue" style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:16px; margin-bottom:12px;">
+        ${mode==='live'?'✅ Confirm — Join Queue':'📅 Confirm Booking'}
+      </button>
+      <p style="font-size:12px; text-align:center; color:#CBD5E1; line-height:1.5; padding-bottom:8px;">
+        Queue position held for 15 minutes after your turn. Arrive on time.
+      </p>
+    </div>
+  </div>`;
+
+  S.patPage = 'queue';
+  ['home','detail','confirm'].forEach(id => { const el=document.getElementById('pat-area-'+id); if(el) el.style.display='none'; });
+  area.style.display = 'block';
+  window.scrollTo(0,0);
+  lucide.createIcons();
+}
+
+let _selSlot = null;
+function pickSlot(el, time, avail) {
+  if (!avail) return;
+  document.querySelectorAll('.slot-btn').forEach(b => {
+    b.style.background = 'white';
+    b.style.borderColor = 'var(--border)';
+    b.querySelector('div').style.color = '#0F172A';
+  });
+  el.style.background = '#2563EB';
+  el.style.borderColor = '#2563EB';
+  el.querySelector('div').style.color = 'white';
+  _selSlot = time;
+  S.selectedSlot = time;
+}
+
+function confirmQ(mode) {
+  const doc = S.selectedDoc;
+  if (mode === 'book' && !S.selectedSlot) {
+    showToast('⚠️ Please select a time slot first', 'warning');
+    return;
+  }
+  const token = Math.floor(Math.random()*14)+3;
+  const wait  = calcWait(doc);
+
+  if (mode === 'live') {
+    doc.joined = true;
+    doc.queue++;
+    const master = S.doctors.find(d=>d.id===doc.id);
+    if (master) { master.queue = doc.queue; master.joined = true; }
+    S.userQueue.push({ docId:doc.id, token, pos:doc.queue, joinedAt:nowTime(), estWait:wait });
+  }
+
+  showConfirm(doc, token, mode, wait);
+  showToast(`✅ ${mode==='live'?'Queue joined':'Slot booked'}! Token #${token}`, 'success');
+}
+
+// ══════════════════════════════════════════
+//  CONFIRMATION SCREEN
+// ══════════════════════════════════════════
+function showConfirm(doc, token, mode, wait) {
+  const area = document.getElementById('pat-area-confirm');
+  area.innerHTML = `
+  <div style="max-width:520px; margin:0 auto; padding:24px 16px 100px; display:flex; flex-direction:column; align-items:center; text-align:center;">
+
+    <!-- Success circle -->
+    <div style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#10B981,#059669); display:flex; align-items:center; justify-content:center; margin-bottom:20px;" class="bounce-in">
+      <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+
+    <h2 style="font-size:26px; font-weight:900; color:#0F172A; margin:0 0 8px;">${mode==='live'?'Queue Joined!':'Slot Booked!'}</h2>
+    <p style="font-size:14px; color:#94A3B8; margin:0 0 28px;">${mode==='live'?'You\'re in the live queue':'Appointment confirmed for '+S.selectedSlot}</p>
+
+    <!-- Token Card -->
+    <div class="token-card fade-up d2" style="width:100%; padding:28px; margin-bottom:20px;">
+      <div style="position:relative; z-index:1;">
+        <div style="color:rgba(255,255,255,0.6); font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">Your Token</div>
+        <div style="font-size:80px; font-weight:900; line-height:1; letter-spacing:-2px; margin-bottom:12px;">#${token}</div>
+        <div style="font-size:14px; font-weight:700; color:rgba(255,255,255,0.9);">${doc.name}</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:20px;">${doc.clinic}</div>
+        <div style="border-top:1px solid rgba(255,255,255,0.2); padding-top:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div><div style="font-size:11px; color:rgba(255,255,255,0.5);">Position</div><div style="font-size:18px; font-weight:800; margin-top:2px;">${doc.queue}${ord(doc.queue)}</div></div>
+          <div><div style="font-size:11px; color:rgba(255,255,255,0.5);">Wait</div><div style="font-size:18px; font-weight:800; margin-top:2px;">~${wait}m</div></div>
+          <div><div style="font-size:11px; color:rgba(255,255,255,0.5);">Fee</div><div style="font-size:18px; font-weight:800; margin-top:2px;">₹${doc.fee}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; margin-bottom:20px;" class="fade-up d3">
+      <div class="card" style="padding:14px; text-align:left;">
+        <div style="font-size:18px; margin-bottom:6px;">📍</div>
+        <div style="font-size:11px; color:#94A3B8;">Clinic</div>
+        <div style="font-size:13px; font-weight:700; color:#0F172A; margin-top:2px;">${doc.clinic}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">${doc.dist} km away</div>
+      </div>
+      <div class="card" style="padding:14px; text-align:left;">
+        <div style="font-size:18px; margin-bottom:6px;">⏰</div>
+        <div style="font-size:11px; color:#94A3B8;">Estimated Time</div>
+        <div style="font-size:13px; font-weight:700; color:#0F172A; margin-top:2px;">${getETA(wait)}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Approx slot</div>
+      </div>
+    </div>
+
+    <!-- Notif Banner -->
+    <div style="background:#EFF6FF; border-radius:16px; padding:14px; width:100%; text-align:left; display:flex; gap:12px; margin-bottom:24px;" class="fade-up d4">
+      <div style="font-size:20px; flex-shrink:0;">🔔</div>
+      <div>
+        <div style="font-size:13px; font-weight:700; color:#1D4ED8;">Smart Alerts Enabled</div>
+        <div style="font-size:12px; color:#3B82F6; margin-top:3px;">We'll notify you 10 mins before your turn. Keep your phone nearby!</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
+      <button onclick="patGoTo('myqueue')" class="btn-blue" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+        ⏱ Track Queue Live
+      </button>
+      <button onclick="patGoTo('home')" class="btn-white">← Back to Home</button>
+    </div>
+  </div>`;
+
+  S.patPage = 'confirm';
+  ['home','detail','queue'].forEach(id => { const el=document.getElementById('pat-area-'+id); if(el) el.style.display='none'; });
+  area.style.display = 'block';
+  window.scrollTo(0,0);
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════
+//  MY QUEUE (PATIENT)
+// ══════════════════════════════════════════
+function renderMyQueue() {
+  const items = S.userQueue;
+  const html = `
+  <div style="max-width:520px; margin:0 auto; padding:16px 16px 100px;">
+    <h2 style="font-size:20px; font-weight:900; color:#0F172A; margin:0 0 16px;">My Queue</h2>
+
+    ${items.length===0 ? `
+    <div style="text-align:center; padding:60px 0;">
+      <div style="font-size:56px; margin-bottom:16px;">🏥</div>
+      <div style="font-size:16px; font-weight:700; color:#475569; margin-bottom:8px;">No active queues</div>
+      <div style="font-size:13px; color:#94A3B8; margin-bottom:24px;">Find a doctor and join a queue</div>
+      <button onclick="patGoTo('home')" class="btn-blue" style="width:auto; padding:12px 28px; display:inline-flex; align-items:center; gap:8px; font-size:14px;">🔍 Find Doctors</button>
+    </div>` : `
+    <div style="font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Active</div>
+    ${items.map(item => {
+      const doc = S.doctors.find(d=>d.id===item.docId) || S.doctors[0];
+      const pos = Math.max(1, item.pos - 1);
+      const wait = pos * doc.avgTime;
+      return `
+      <div class="card fade-up" style="padding:18px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+          <div class="avatar ${doc.avCls}" style="width:48px; height:48px; border-radius:14px; font-size:16px; flex-shrink:0;">${doc.av}</div>
+          <div style="flex:1;">
+            <div style="font-size:14px; font-weight:800; color:#0F172A;">${doc.name}</div>
+            <div style="font-size:12px; color:#64748B;">${doc.clinic}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:28px; font-weight:900; color:#2563EB; line-height:1;">#${item.token}</div>
+            <div style="font-size:11px; color:#94A3B8;">Token</div>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div style="background:#EFF6FF; border-radius:14px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;">
+            <span style="font-weight:700; color:#0F172A;">Queue Progress</span>
+            <span style="font-weight:700; color:#2563EB;">${pos} ahead</span>
+          </div>
+          <div class="qbar" style="height:8px; margin-bottom:6px;"><div class="qfill" style="width:${Math.max(8,100-(pos/15*100))}%; background:linear-gradient(90deg,#10B981,#059669);"></div></div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8;">
+            <span>Joined at ${item.joinedAt}</span>
+            <span>~${wait} min wait</span>
+          </div>
+        </div>
+
+        <!-- Steps -->
+        <div style="display:flex; align-items:center; margin-bottom:14px;">
+          ${['Joined','In Queue','Your Turn','Done'].map((step,i) => `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <div class="step-dot" style="background:${i<=1?'#2563EB':'#E2E8F0'}; color:${i<=1?'white':'#94A3B8'}; font-size:11px;">
+              ${i<=1?'✓':i+1}
+            </div>
+            <span style="font-size:10px; font-weight:600; color:${i<=1?'#2563EB':'#94A3B8'}; white-space:nowrap;">${step}</span>
+          </div>
+          ${i<3?`<div style="flex:1; height:2px; background:${i<1?'#2563EB':'#E2E8F0'}; margin-bottom:16px;"></div>`:''}`).join('')}
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex; gap:8px;">
+          <button onclick="showToast('📍 Maps opened!','info')" style="flex:1; padding:11px; border-radius:11px; border:none; background:#EFF6FF; color:#2563EB; font-size:13px; font-weight:700; cursor:pointer;">🗺 Navigate</button>
+          <button onclick="leaveQ(${item.token})" style="flex:1; padding:11px; border-radius:11px; border:none; background:#FEF2F2; color:#DC2626; font-size:13px; font-weight:700; cursor:pointer;">✕ Leave Queue</button>
+        </div>
+      </div>`;
+    }).join('')}
+
+    <!-- Past visits -->
+    <div style="font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px; margin-top:6px;">Past Visits</div>
+    ${genPastVisits()}
+    `}
+  </div>`;
+
+  showModal2(html);
+  lucide.createIcons();
+}
+
+function showModal2(html) {
+  // For pages that aren't in the pat-area divs, render in a modal-style full page
+  const box = document.getElementById('modalBox');
+  box.innerHTML = `
+    <div style="position:fixed; inset:0; background:var(--surface); z-index:500; overflow-y:auto; padding-bottom:80px;">
+      <div class="top-bar" style="display:flex; align-items:center; padding:12px 16px; gap:12px; max-width:520px; margin:0 auto;">
+        <button onclick="closeModal2()" style="width:36px; height:36px; border-radius:10px; border:none; background:#F1F5F9; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
+      ${html}
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function closeModal2() {
+  document.getElementById('modalBox').innerHTML = '';
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('pnav-home')?.classList.add('on');
+}
+
+function leaveQ(token) {
+  S.userQueue = S.userQueue.filter(i => i.token !== token);
+  showToast('✅ Left queue', 'info');
+  renderMyQueue();
+}
+
+function genPastVisits() {
+  const visits = [
+    {name:'Dr. Kavita Joshi', spec:'Pediatrician', date:'Dec 15, 2024', avCls:'av-pediatric', av:'KJ'},
+    {name:'Dr. Rajiv Kapoor', spec:'Dentist', date:'Nov 28, 2024', avCls:'av-dental', av:'RK'},
+  ];
+  return visits.map(v => `
+  <div class="card" style="padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px;">
+    <div class="avatar ${v.avCls}" style="width:40px; height:40px; border-radius:12px; font-size:13px; flex-shrink:0;">${v.av}</div>
+    <div style="flex:1;">
+      <div style="font-size:13px; font-weight:700; color:#0F172A;">${v.name}</div>
+      <div style="font-size:11px; color:#94A3B8;">${v.spec} · ${v.date}</div>
+    </div>
+    <button onclick="showToast('📋 Visit details — coming soon!','info')" style="background:#EFF6FF; color:#2563EB; border:none; border-radius:10px; padding:7px 13px; font-size:12px; font-weight:700; cursor:pointer;">View</button>
+  </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+//  PATIENT NOTIFICATIONS
+// ══════════════════════════════════════════
+function renderPatNotifs() {
+  const unread = PAT_NOTIFS.filter(n=>!n.read).length;
+  const html = `
+  <div style="max-width:520px; margin:0 auto; padding:16px 16px 80px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <h2 style="font-size:20px; font-weight:900; color:#0F172A; margin:0;">Notifications</h2>
+      ${unread>0?`<button onclick="markAllRead()" style="font-size:12px; color:#2563EB; font-weight:700; background:none; border:none; cursor:pointer;">Mark all read</button>`:''}
+    </div>
+    ${unread>0?`<div style="background:#EFF6FF; border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:13px; font-weight:600; color:#1D4ED8;">${unread} unread notification${unread>1?'s':''}</div>`:''}
+    ${PAT_NOTIFS.map(n => `
+    <div style="display:flex; gap:12px; padding:14px 0; border-bottom:1px solid #F1F5F9;" class="${!n.read?'fade-up':''}">
+      <div style="width:8px; height:8px; border-radius:50%; background:${!n.read?'#2563EB':'transparent'}; border:${n.read?'1.5px solid #E2E8F0':'none'}; flex-shrink:0; margin-top:6px;"></div>
+      <div style="width:40px; height:40px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; background:#F1F5F9;">${n.icon}</div>
+      <div style="flex:1;">
+        <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
+          <span style="font-size:13px; font-weight:700; color:#0F172A;">${n.title}</span>
+          <span style="font-size:11px; color:#94A3B8; white-space:nowrap;">${n.time}</span>
+        </div>
+        <p style="font-size:12px; color:#64748B; margin:0; line-height:1.6;">${n.body}</p>
+      </div>
+    </div>`).join('')}
+  </div>`;
+  showModal2(html);
+}
+
+function markAllRead() { PAT_NOTIFS.forEach(n=>n.read=true); renderPatNotifs(); showToast('✓ All read','success'); }
+
+// ══════════════════════════════════════════
+//  PATIENT PROFILE
+// ══════════════════════════════════════════
+function renderPatProfile() {
+  const html = `
+  <div style="max-width:520px; margin:0 auto; padding:16px 16px 80px;">
+    <h2 style="font-size:20px; font-weight:900; color:#0F172A; margin:0 0 20px;">Profile</h2>
+
+    <!-- Avatar -->
+    <div style="text-align:center; margin-bottom:24px;" class="fade-up">
+      <div style="width:88px; height:88px; border-radius:28px; background:linear-gradient(135deg,#2563EB,#0284C7); display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:900; color:white; margin:0 auto 12px;">RK</div>
+      <div style="font-size:20px; font-weight:900; color:#0F172A;">Rahul Kumar</div>
+      <div style="font-size:13px; color:#94A3B8; margin-top:4px;">+91 98765 43210 · rahul@email.com</div>
+      <button onclick="showToast('✏️ Edit profile — coming soon!','info')" style="margin-top:12px; background:white; border:1.5px solid var(--border); border-radius:10px; padding:8px 20px; font-size:13px; font-weight:600; cursor:pointer; color:#475569;">Edit Profile</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;" class="fade-up d1">
+      ${[{val:'14',lbl:'Visits',col:'#2563EB'},{val:'6',lbl:'Doctors',col:'#10B981'},{val:'2.4h',lbl:'Saved',col:'#8B5CF6'}].map(s=>`
+      <div class="card" style="padding:14px; text-align:center;">
+        <div style="font-size:24px; font-weight:900; color:${s.col};">${s.val}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:3px;">${s.lbl}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Menu -->
+    ${[
+      {icon:'❤️',label:'Health Records',sub:'0 docs uploaded'},
+      {icon:'📋',label:'Visit History',sub:'14 appointments'},
+      {icon:'⭐',label:'My Reviews',sub:'3 reviews given'},
+      {icon:'🔔',label:'Notifications',sub:'Queue alerts on'},
+      {icon:'🔒',label:'Privacy & Security',sub:'2FA enabled'},
+      {icon:'🌐',label:'Language',sub:'English / हिंदी'},
+      {icon:'❓',label:'Help & Support',sub:'24/7 chat'},
+      {icon:'🚪',label:'Sign Out',sub:'', red:true},
+    ].map(item=>`
+    <div onclick="${item.red?`showModal('<div style=\\"padding:24px; text-align:center;\\"><div style=\\"font-size:48px; margin-bottom:12px;\\">👋</div><h3 style=\\"font-size:18px; font-weight:800; margin:0 0 8px;\\">Sign Out?</h3><p style=\\"font-size:14px; color:#64748B; margin:0 0 24px;\\">You will be taken back to the home screen.</p><button onclick=\\"showPage(\'page-landing\'); closeModal();\\\" class=\\"btn-red\\" style=\\"margin-bottom:10px;\\">Yes, Sign Out</button><button onclick=\\"closeModal()\\" class=\\"btn-white\\">Cancel</button></div>')`:
+    `showToast('🚧 ${item.label} — coming soon!','info')`}"
+    style="background:white; border:1px solid var(--border); border-radius:16px; padding:14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.18s;" class="card-hover fade-up">
+      <div style="width:40px; height:40px; border-radius:12px; background:${item.red?'#FEF2F2':'#F8FAFC'}; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">${item.icon}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:700; color:${item.red?'#DC2626':'#0F172A'};">${item.label}</div>
+        ${item.sub?`<div style="font-size:11px; color:#94A3B8;">${item.sub}</div>`:''}
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`).join('')}
+
+    <p style="text-align:center; font-size:11px; color:#CBD5E1; margin-top:16px;">DocQueue v1.0 · Made with ❤️ in India</p>
+  </div>`;
+  showModal2(html);
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════
+//  FILTER / SEARCH / SORT
+// ══════════════════════════════════════════
+function getFilteredList() {
+  let list = [...S.doctors];
+  if (S.emergency) list = list.filter(d=>d.status==='available');
+  if (S.filter!=='All') list = list.filter(d=>d.spec===S.filter);
+  if (S.search) {
+    const q = S.search.toLowerCase();
+    list = list.filter(d =>
+      d.name.toLowerCase().includes(q) ||
+      d.spec.toLowerCase().includes(q) ||
+      d.clinic.toLowerCase().includes(q) ||
+      d.tags.some(t=>t.toLowerCase().includes(q))
+    );
+  }
+  switch(S.sort) {
+    case 'distance': return list.sort((a,b)=>a.dist-b.dist);
+    case 'wait':     return list.sort((a,b)=>calcWait(a)-calcWait(b));
+    case 'rating':   return list.sort((a,b)=>b.rating-a.rating);
+    case 'queue':    return list.sort((a,b)=>a.queue-b.queue);
+  }
+  return list;
+}
+
+function filterSpec(el, spec) {
+  S.filter = spec;
+  document.querySelectorAll('#specChips .chip').forEach(c=>{ c.classList.remove('chip-on'); c.classList.add('chip-off'); });
+  el.classList.remove('chip-off'); el.classList.add('chip-on');
+  renderDoctorCards();
+}
+
+function onSearch() { S.search = document.getElementById('patSearch')?.value||''; renderDoctorCards(); }
+function onSort()   { S.sort = document.getElementById('sortSel')?.value||'distance'; renderDoctorCards(); }
+function toggleEM() { S.emergency = document.getElementById('emToggle')?.checked||false; renderDoctorCards(); if(S.emergency) showToast('🚨 Emergency Mode ON — showing available only','warning'); }
+
+// ══════════════════════════════════════════
+//  LOCATION
+// ══════════════════════════════════════════
+function changeLocation() {
+  showModal(`
+    <div style="padding:24px;">
+      <h3 style="font-size:17px; font-weight:800; color:#0F172A; margin:0 0 16px;">Change Location</h3>
+      <button onclick="closeModal(); showToast('📍 Location updated!','success');" class="btn-blue" style="margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;">📍 Use Current Location</button>
+      <div style="position:relative; margin-bottom:12px;">
+        <input type="text" placeholder="Search area or city…" class="inp" id="locInp" />
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        ${['Connaught Place, Delhi','Lajpat Nagar, Delhi','Dwarka Sector 6, Delhi','Greater Noida','Gurugram, Haryana'].map(loc=>`
+        <button onclick="closeModal(); document.getElementById('locText').textContent='📍 ${loc}'; showToast('📍 ${loc}','success');"
+          style="text-align:left; padding:12px 14px; border-radius:12px; border:1.5px solid var(--border); background:white; font-size:13px; font-weight:600; color:#475569; cursor:pointer; transition:all 0.18s;">
+          📍 ${loc}
+        </button>`).join('')}
+      </div>
+    </div>
+  `);
+}
+
+function voiceSearch() { showToast('🎤 Voice search: Speak now…','info'); }
+function shareDoc()    { showToast('🔗 Link copied to clipboard!','success'); }
+function quickJoinQ(id){ if(S.doctors.find(d=>d.id===id)?.joined){ showToast('✅ Already in this queue','info'); return; } openQueueScreen(id,'live'); }
+function openBookQ(id) { openQueueScreen(id,'book'); }
+
+// ══════════════════════════════════════════
+//  MODAL (GLOBAL)
+// ══════════════════════════════════════════
+function showModal(content) {
+  document.getElementById('modalBox').innerHTML = `
+    <div class="overlay" onclick="closeModal(event)">
+      <div class="sheet" style="max-width:480px;" onclick="event.stopPropagation()">
+        <div style="width:48px; height:5px; border-radius:999px; background:#E2E8F0; margin:14px auto 6px;"></div>
+        ${content}
+      </div>
+    </div>`;
+  lucide.createIcons();
+}
+
+function closeModal(event) {
+  if (!event || event.target.classList.contains('overlay')) {
+    document.getElementById('modalBox').innerHTML = '';
+  }
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function showToast(msg, type='info') {
+  const colors = {success:'#059669',error:'#DC2626',warning:'#D97706',info:'#2563EB'};
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderLeft = `4px solid ${colors[type]||colors.info}`;
+  t.textContent = msg;
+  document.getElementById('toastBox').appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+// ══════════════════════════════════════════
+//  REALTIME SIMULATION
+// ══════════════════════════════════════════
+function startRealtime() {
+  clearInterval(window._rt);
+  window._rt = setInterval(() => {
+    S.doctors.forEach(doc => {
+      if (doc.status==='closed') return;
+      const r = Math.random();
+      if (r<0.18 && doc.queue>0) doc.queue--;
+      else if (r<0.12) { doc.queue = Math.min(15, doc.queue+1); }
+      if (doc.queue===0 && doc.status==='busy') doc.status='available';
+      else if (doc.queue>=6 && doc.status==='available') doc.status='busy';
+    });
+
+    // Update patient home cards live
+    if (S.role==='patient' && S.patPage==='home') renderDoctorCards();
+
+    // Update doctor overview counters
+    if (S.role==='doctor' && S.docTab==='overview') {
+      const d = S.loggedDoctor;
+      const master = S.doctors.find(x=>x.id===d.id);
+      if (master) {
+        ['ov-queue'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=master.queue; });
+        ['ov-wait'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=calcWait(master); });
+      }
+    }
+  }, 5000);
+}
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function calcWait(d) { return d.status==='closed'?0:d.queue*d.avgTime; }
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+function nowTime() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function getETA(mins) { const d=new Date(); d.setMinutes(d.getMinutes()+mins); return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function ord(n) { const s=['th','st','nd','rd']; const v=n%100; return s[(v-20)%10]||s[v]||s[0]; }
+
+function statusIcon(s) { return {available:'🟢',busy:'🟡',closed:'🔴'}[s]||'⚫'; }
+function statusCls(s)  { return {available:'s-available',busy:'s-busy',closed:'s-closed'}[s]||'s-closed'; }
+function statusGrad(s) { return {available:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',busy:'linear-gradient(135deg,#FFFBEB,#FEF9C3)',closed:'linear-gradient(135deg,#FFF1F2,#FEE2E2)'}[s]; }
+function statusBorderColor(s) { return {available:'#BBF7D0',busy:'#FDE68A',closed:'#FECACA'}[s]; }
+function statusTextColor(s)   { return {available:'#16A34A',busy:'#CA8A04',closed:'#DC2626'}[s]; }
+
+function genSlots() {
+  return [9,9.5,10,10.5,11,11.5,17,17.5,18,18.5,19,19.5].map(h=>({
+    time:`${Math.floor(h)}:${h%1===0?'00':'30'} ${h<12?'AM':'PM'}`,
+    avail:Math.random()>0.35
+  }));
+}
+
+function genAllSlots() {
+  const names=['Amit S.','Sneha P.','Ravi K.','Deepa N.','Vivek J.','Meena R.','—','—','Arjun T.','Pooja M.','—','—'];
+  const reasons=['Follow-up','Checkup','Fever','BP Check','Prescription','Consultation','','','New Patient','Skin Issue','',''];
+  return [9,9.5,10,10.5,11,11.5,17,17.5,18,18.5,19,19.5].map((h,i)=>({
+    time:`${Math.floor(h)}:${h%1===0?'00':'30'}`,
+    period:h<12?'AM':'PM',
+    booked:names[i]!=='—'&&names[i]!=='',
+    patName:names[i]||'',
+    reason:reasons[i]||''
+  }));
+}
+
+function genPatients(d) {
+  const names=['Amit S.','Sneha P.','Rohit K.','Deepa N.','Vivek J.'];
+  const reasons=['Follow-up','Checkup','Fever','BP Check','Prescription'];
+  const times=['9:15 AM','9:45 AM','10:20 AM','10:45 AM','11:10 AM'];
+  const statuses=['done','done','current','waiting','waiting'];
+  return names.slice(0,5).map((name,i)=>({token:i+1,name,reason:reasons[i],time:times[i],status:statuses[i]}));
+}
+
+function genReviews() {
+  return [
+    {init:'AK',name:'Ankit Khanna',stars:5,text:'Excellent! Very thorough, explained everything clearly. No long wait thanks to DocQueue.',date:'2 days ago'},
+    {init:'PS',name:'Priya Singh',stars:5,text:'Been visiting for 2 years. Always professional. The queue tracking feature is a game changer!',date:'1 week ago'},
+    {init:'RG',name:'Ravi Gupta',stars:4,text:'Good experience overall. Queue was well-managed via the app.',date:'2 weeks ago'},
+  ];
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+window.addEventListener('load', () => {
+  lucide.createIcons();
+});
+</script>
+</body>
+</html>
