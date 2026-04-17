@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DocQueue — Find Doctors, Skip the Wait</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{font-family:'Inter',sans-serif;box-sizing:border-box;margin:0;padding:0;}
+:root{--blue:#2563EB;--blue-dark:#1D4ED8;--green:#10B981;--yellow:#F59E0B;--red:#EF4444;--border:#E2E8F0;--surface:#F8FAFF;--text:#0F172A;--muted:#64748B;}
+body{background:var(--surface);color:var(--text);overflow-x:hidden;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px;}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;}
+.screen.show{display:block;}
+
+/* ── ANIMATIONS (lightweight) ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes bounceIn{0%{transform:scale(0.6);opacity:0;}70%{transform:scale(1.05);}100%{transform:scale(1);opacity:1;}}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}  }
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+@keyframes pop{0%{transform:scale(1);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
+.fu{animation:fadeUp 0.35s ease both;}
+.fi{animation:fadeIn 0.3s ease both;}
+.bi{animation:bounceIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;}
+.d1{animation-delay:0.05s;opacity:0;animation-fill-mode:both;}
+.d2{animation-delay:0.10s;opacity:0;animation-fill-mode:both;}
+.d3{animation-delay:0.15s;opacity:0;animation-fill-mode:both;}
+.d4{animation-delay:0.20s;opacity:0;animation-fill-mode:both;}
+.d5{animation-delay:0.25s;opacity:0;animation-fill-mode:both;}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:18px;}
+.clickable{cursor:pointer;transition:transform 0.2s,box-shadow 0.2s,border-color 0.2s;}
+.clickable:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(37,99,235,0.10);border-color:#93C5FD;}
+.clickable:active{transform:translateY(0);}
+
+/* ── BUTTONS ── */
+.btn{width:100%;border:none;border-radius:12px;padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.18s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn:active{transform:scale(0.98);}
+.btn-blue{background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,0.28);}
+.btn-blue:hover{box-shadow:0 6px 20px rgba(37,99,235,0.40);}
+.btn-green{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 4px 14px rgba(16,185,129,0.28);}
+.btn-red{background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff;}
+.btn-ghost{background:#F1F5F9;color:var(--text);border:1.5px solid var(--border);}
+.btn-ghost:hover{background:#E2E8F0;}
+.btn-sm{width:auto;padding:9px 16px;font-size:13px;border-radius:10px;}
+
+/* ── INPUTS ── */
+.inp{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;font-size:14px;outline:none;background:#fff;color:var(--text);transition:border 0.2s,box-shadow 0.2s;}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,0.10);}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;border:1.5px solid transparent;white-space:nowrap;user-select:none;}
+.chip-on{background:var(--blue);color:#fff;}
+.chip-off{background:#fff;color:var(--muted);border-color:var(--border);}
+.chip-off:hover{border-color:#93C5FD;color:var(--blue);}
+
+/* ── STATUS PILLS ── */
+.s-available{background:#DCFCE7;color:#16A34A;}
+.s-busy{background:#FEF9C3;color:#CA8A04;}
+.s-closed{background:#FEE2E2;color:#DC2626;}
+
+/* ── QUEUE BAR ── */
+.qbar{height:6px;border-radius:999px;background:#E2E8F0;overflow:hidden;}
+.qfill{height:100%;border-radius:999px;transition:width 0.6s ease;}
+
+/* ── SKELETON ── */
+.skel{background:linear-gradient(90deg,#F1F5F9 25%,#E8EDF5 50%,#F1F5F9 75%);background-size:800px 100%;animation:shimmer 1.4s infinite;}
+
+/* ── AVATAR ── */
+.av{display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;}
+.av-general{background:#DBEAFE;color:#2563EB;}
+.av-dental{background:#D1FAE5;color:#059669;}
+.av-cardio{background:#FFE4E6;color:#E11D48;}
+.av-derma{background:#F3E8FF;color:#9333EA;}
+.av-ortho{background:#FFEDD5;color:#EA580C;}
+.av-pediatric{background:#FEF9C3;color:#CA8A04;}
+.av-ent{background:#CCFBF1;color:#0D9488;}
+
+/* ── TOP BAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.topbar-inner{max-width:520px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+
+/* ── BOTTOM NAV ── */
+.botnav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.97);backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:100;}
+.botnav-inner{max-width:520px;margin:0 auto;display:flex;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;cursor:pointer;transition:color 0.2s;color:#94A3B8;border:none;background:none;font-family:'Inter',sans-serif;}
+.nb.on,.nb:hover{color:var(--blue);}
+.nb span{font-size:11px;font-weight:600;margin-top:3px;}
+
+/* ── CONTENT AREA ── */
+.content{max-width:520px;margin:0 auto;padding:16px 16px 96px;}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s ease;}
+.modal-box{background:#fff;border-radius:26px 26px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1);}
+.modal-handle{width:44px;height:5px;background:#E2E8F0;border-radius:999px;margin:12px auto 4px;}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:72px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{background:#1E293B;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,0.2);animation:fadeUp 0.25s ease;pointer-events:all;max-width:280px;}
+
+/* ── TOKEN ── */
+.token-card{background:linear-gradient(135deg,#1D4ED8,#0284C7);border-radius:22px;color:#fff;text-align:center;padding:28px;position:relative;overflow:hidden;}
+.token-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.07);}
+.token-card::after{content:'';position:absolute;bottom:-30px;left:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
+
+/* ── LANDING ── */
+.landing-bg{background:linear-gradient(150deg,#EFF6FF 0%,#F0F9FF 50%,#F5F3FF 100%);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+
+/* ── DOCTOR LOGIN ── */
+.doc-login-bg{background:linear-gradient(150deg,#0F172A 0%,#1E3A5F 60%,#0C4A6E 100%);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.glass{background:rgba(255,255,255,0.07);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.13);border-radius:22px;}
+
+/* ── DOCTOR DASHBOARD ── */
+.doc-tab-bar{position:sticky;top:61px;z-index:90;background:rgba(248,250,255,0.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+.stat-box{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;}
+.cbtn{width:48px;height:48px;border-radius:14px;border:none;font-size:22px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.15s;}
+.cbtn:hover{transform:scale(1.1);}
+.cbtn:active{transform:scale(0.93);}
+.pat-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F1F5F9;}
+.pat-row:last-child{border-bottom:none;}
+
+/* ── SWITCH ── */
+.sw{position:relative;display:inline-block;width:48px;height:26px;}
+.sw input{opacity:0;width:0;height:0;}
+.sl{position:absolute;cursor:pointer;inset:0;background:#CBD5E1;border-radius:999px;transition:0.25s;}
+.sl:before{content:'';position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.25s;box-shadow:0 2px 4px rgba(0,0,0,0.15);}
+input:checked+.sl{background:var(--blue);}
+input:checked+.sl:before{transform:translateX(22px);}
+
+/* ── MAP STUB ── */
+.map-stub{background:linear-gradient(135deg,#EFF6FF,#F0FDF4);border:2px dashed #BFDBFE;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;cursor:pointer;}
+
+/* ── SCROLL X ── */
+.sx{overflow-x:auto;scrollbar-width:none;}
+.sx::-webkit-scrollbar{display:none;}
+
+/* ── TICKER ── */
+.ticker-wrap{overflow:hidden;white-space:nowrap;}
+.ticker-inner{display:inline-block;animation:ticker 20s linear infinite;}
+
+/* ── PULSE DOT ── */
+.pdot{display:inline-block;border-radius:50%;animation:pulse 1.5s ease-in-out infinite;}
+
+/* ── STEP ── */
+.step-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 1: LANDING
+═══════════════════════════════════════ -->
+<div class="screen show" id="s-landing">
+<div class="landing-bg">
+  <div class="fi" style="text-align:center;margin-bottom:48px;">
+    <div style="width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,#2563EB,#0284C7);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 12px 40px rgba(37,99,235,0.3);">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+    </div>
+    <h1 style="font-size:38px;font-weight:900;color:#0F172A;letter-spacing:-1.5px;">Doc<span style="color:#2563EB;">Queue</span></h1>
+    <p style="color:#64748B;margin-top:8px;font-size:16px;">Find doctors. Skip the wait.</p>
+  </div>
+
+  <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;">
+    <!-- Patient Card -->
+    <div class="card clickable fu d1" style="padding:26px;border-radius:22px;" onclick="goPatient()">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+        <div style="width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#DBEAFE,#EFF6FF);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div style="flex:1;">
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin-bottom:3px;">I'm a Patient</h2>
+          <p style="font-size:13px;color:#64748B;line-height:1.5;">Find nearby doctors, check live queue & book slots</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <span style="background:#EFF6FF;color:#2563EB;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">🔍 Discover</span>
+        <span style="background:#F0FDF4;color:#16A34A;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">⏱ Live Queue</span>
+        <span style="background:#FDF4FF;color:#9333EA;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">📅 Book</span>
+      </div>
+    </div>
+
+    <!-- Doctor Card -->
+    <div class="card clickable fu d2" style="padding:26px;border-radius:22px;border-color:#0284C7;" onclick="goDocLogin()">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+        <div style="width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#CCFBF1,#F0FDFA);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+        </div>
+        <div style="flex:1;">
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin-bottom:3px;">I'm a Doctor</h2>
+          <p style="font-size:13px;color:#64748B;line-height:1.5;">Manage clinic queue, appointments & availability</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <span style="background:#CCFBF1;color:#0D9488;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">📊 Dashboard</span>
+        <span style="background:#FEF9C3;color:#CA8A04;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">👥 Queue Mgmt</span>
+        <span style="background:#DBEAFE;color:#2563EB;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">📋 Patients</span>
+      </div>
+    </div>
+  </div>
+  <p style="color:#CBD5E1;font-size:12px;margin-top:36px;">DocQueue v1.0 · Made with ❤️ in India</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 2: DOCTOR LOGIN
+═══════════════════════════════════════ -->
+<div class="screen" id="s-doclogin">
+<div class="doc-login-bg">
+  <button onclick="goScreen('s-landing')" style="position:absolute;top:20px;left:16px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);color:white;border-radius:12px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+    ← Back
+  </button>
+
+  <div style="width:100%;max-width:380px;">
+    <div class="fi" style="text-align:center;margin-bottom:32px;">
+      <div style="width:62px;height:62px;border-radius:18px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h1 style="font-size:26px;font-weight:900;color:white;margin-bottom:6px;">Doctor Login</h1>
+      <p style="color:rgba(255,255,255,0.55);font-size:14px;">Access your clinic dashboard</p>
+    </div>
+
+    <div class="glass fu" style="padding:26px;margin-bottom:14px;">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.65);margin-bottom:7px;text-transform:uppercase;letter-spacing:0.06em;">Registration ID</label>
+        <input id="docRegId" type="text" value="MCI-DL-2024-0042" class="inp" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15);color:white;" placeholder="MCI-DL-XXXX-XXXX"/>
+      </div>
+      <div style="margin-bottom:22px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.65);margin-bottom:7px;text-transform:uppercase;letter-spacing:0.06em;">Password</label>
+        <div style="position:relative;">
+          <input id="docPwd" type="password" value="password123" class="inp" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15);color:white;padding-right:46px;" placeholder="••••••••"/>
+          <button onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.45);font-size:16px;">👁</button>
+        </div>
+      </div>
+      <button onclick="doDocLogin()" id="loginBtn" class="btn btn-blue">Sign In to Dashboard</button>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:16px;padding:16px;margin-bottom:14px;text-align:center;">
+      <p style="color:rgba(255,255,255,0.45);font-size:12px;margin-bottom:10px;">Or jump in as a specific doctor:</p>
+      <div class="sx" style="display:flex;gap:8px;">
+        <button onclick="quickLogin(0)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Dr. Sharma</button>
+        <button onclick="quickLogin(1)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Dr. Kapoor</button>
+        <button onclick="quickLogin(2)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Dr. Mehta</button>
+        <button onclick="quickLogin(3)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Dr. Rao</button>
+        <button onclick="quickLogin(4)" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Dr. Joshi</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 3: DOCTOR DASHBOARD
+═══════════════════════════════════════ -->
+<div class="screen" id="s-docdash">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#0D9488,#0891B2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <div>
+          <div id="dd-name" style="font-size:13px;font-weight:800;color:#0F172A;">Dr. Name</div>
+          <div id="dd-spec" style="font-size:11px;color:#64748B;">Specialty</div>
+        </div>
+      </div>
+      <button onclick="doDocLogout()" style="background:#FEE2E2;color:#DC2626;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">Logout</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="doc-tab-bar">
+    <div class="sx" style="max-width:520px;margin:0 auto;padding:10px 16px 0;display:flex;gap:6px;padding-bottom:10px;">
+      <button class="chip chip-on doc-tab" data-tab="overview" onclick="switchTab('overview',this)">📊 Overview</button>
+      <button class="chip chip-off doc-tab" data-tab="queue" onclick="switchTab('queue',this)">👥 Queue</button>
+      <button class="chip chip-off doc-tab" data-tab="appts" onclick="switchTab('appts',this)">📅 Appointments</button>
+      <button class="chip chip-off doc-tab" data-tab="analytics" onclick="switchTab('analytics',this)">📈 Analytics</button>
+      <button class="chip chip-off doc-tab" data-tab="settings" onclick="switchTab('settings',this)">⚙️ Settings</button>
+    </div>
+  </div>
+
+  <div class="content" id="dd-content" style="padding-top:12px;"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 4: PATIENT APP
+═══════════════════════════════════════ -->
+<div class="screen" id="s-patient">
+  <!-- Top Bar -->
+  <div class="topbar" id="pat-topbar">
+    <div class="topbar-inner">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#2563EB,#0284C7);display:flex;align-items:center;justify-content:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+        </div>
+        <span style="font-size:17px;font-weight:900;color:#0F172A;letter-spacing:-0.5px;">Doc<span style="color:#2563EB;">Queue</span></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="patNav('notifications')" style="position:relative;width:34px;height:34px;border-radius:10px;border:none;background:#F1F5F9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notif-dot" style="position:absolute;top:7px;right:7px;width:6px;height:6px;background:#EF4444;border-radius:50%;border:1.5px solid white;"></span>
+        </button>
+        <div onclick="patNav('profile')" style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#2563EB,#0284C7);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;font-weight:800;color:white;">RK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Content (single container, we swap innerHTML) -->
+  <div id="pat-content"></div>
+
+  <!-- Bottom Nav -->
+  <nav class="botnav">
+    <div class="botnav-inner">
+      <button class="nb on" id="pnav-home" onclick="patNav('home')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="nb" id="pnav-myqueue" onclick="patNav('myqueue')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>My Queue</span>
+      </button>
+      <button class="nb" id="pnav-notifications" onclick="patNav('notifications')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span>Alerts</span>
+      </button>
+      <button class="nb" id="pnav-profile" onclick="patNav('profile')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profile</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- Global modal & toast containers -->
+<div id="modal-root"></div>
+<div class="toast-wrap" id="toast-root"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════
+const DOCS = [
+  {id:1,name:"Dr. Ananya Sharma",spec:"General Physician",clinic:"Sharma Wellness Clinic",addr:"12, Connaught Place, New Delhi",dist:0.4,rating:4.8,reviews:312,queue:3,avgTime:7,status:"available",fee:400,exp:12,av:"AS",avCls:"av-general",tags:["Diabetes","Hypertension","Fever","General OPD"],lang:["English","Hindi"],timings:"Mon–Sat: 9AM–1PM, 5–8PM",phone:"+91 98765 43210",about:"Dr. Ananya Sharma is a highly experienced general physician with 12 years of practice, specialising in preventive medicine, chronic disease management, and family healthcare.",nextSlot:"Today, 5:30 PM",servedToday:12,totalPat:2847,joined:false},
+  {id:2,name:"Dr. Rajiv Kapoor",spec:"Dentist",clinic:"SmileFirst Dental Studio",addr:"45, Lajpat Nagar, New Delhi",dist:0.8,rating:4.9,reviews:486,queue:0,avgTime:15,status:"available",fee:600,exp:18,av:"RK",avCls:"av-dental",tags:["Braces","Root Canal","Whitening","Implants"],lang:["English","Hindi","Punjabi"],timings:"Mon–Sat: 10AM–7PM",phone:"+91 87654 32109",about:"Dr. Rajiv Kapoor is a BDS, MDS-certified prosthodontist with 18 years of experience, expert in cosmetic dentistry, implants and paediatric dentistry.",nextSlot:"Today, Now!",servedToday:8,totalPat:3421,joined:false},
+  {id:3,name:"Dr. Priya Mehta",spec:"Dermatologist",clinic:"GlowCare Skin Clinic",addr:"78, Khan Market, New Delhi",dist:1.2,rating:4.7,reviews:229,queue:6,avgTime:10,status:"busy",fee:800,exp:9,av:"PM",avCls:"av-derma",tags:["Acne","Hair Loss","Botox","Laser"],lang:["English","Hindi"],timings:"Tue–Sun: 11AM–6PM",phone:"+91 76543 21098",about:"Dr. Priya Mehta is a certified dermatologist specialising in acne treatment, anti-aging and cosmetic procedures, trained at AIIMS Delhi.",nextSlot:"Today, 4:00 PM",servedToday:15,totalPat:1923,joined:false},
+  {id:4,name:"Dr. Suresh Rao",spec:"Cardiologist",clinic:"HeartCare Centre",addr:"23, Safdarjung, New Delhi",dist:1.8,rating:4.6,reviews:178,queue:8,avgTime:12,status:"busy",fee:1200,exp:22,av:"SR",avCls:"av-cardio",tags:["Angioplasty","ECG","Echo","Heart Failure"],lang:["English","Hindi","Telugu"],timings:"Mon–Fri: 10AM–3PM",phone:"+91 65432 10987",about:"Dr. Suresh Rao is an interventional cardiologist with 22 years of experience, having performed over 5,000 angioplasties.",nextSlot:"Tomorrow, 10AM",servedToday:9,totalPat:1654,joined:false},
+  {id:5,name:"Dr. Kavita Joshi",spec:"Pediatrician",clinic:"KidsCare Hospital",addr:"56, Vasant Kunj, New Delhi",dist:2.1,rating:4.9,reviews:543,queue:2,avgTime:8,status:"available",fee:500,exp:15,av:"KJ",avCls:"av-pediatric",tags:["Vaccination","Growth","Fever","Newborn"],lang:["English","Hindi","Gujarati"],timings:"Mon–Sat: 9AM–1PM, 4–7PM",phone:"+91 54321 09876",about:"Dr. Kavita Joshi is a paediatrician and neonatologist with 15 years of experience, trusted by thousands of Delhi families.",nextSlot:"Today, 4:15 PM",servedToday:18,totalPat:4102,joined:false},
+  {id:6,name:"Dr. Amit Verma",spec:"Orthopedic",clinic:"BoneWell Ortho Clinic",addr:"89, Dwarka Sector 6, New Delhi",dist:2.7,rating:4.5,reviews:167,queue:0,avgTime:10,status:"closed",fee:700,exp:14,av:"AV",avCls:"av-ortho",tags:["Knee Pain","Sports Injury","Joint","Spine"],lang:["English","Hindi"],timings:"Mon–Sat: 6–9PM",phone:"+91 43210 98765",about:"Dr. Amit Verma is an orthopaedic surgeon specialising in sports injuries, joint replacement and spine surgery.",nextSlot:"Today, 6:00 PM",servedToday:6,totalPat:1235,joined:false},
+  {id:7,name:"Dr. Neha Gupta",spec:"ENT",clinic:"ClearSound ENT Clinic",addr:"34, Janakpuri, New Delhi",dist:3.0,rating:4.7,reviews:214,queue:4,avgTime:8,status:"available",fee:550,exp:11,av:"NG",avCls:"av-ent",tags:["Sinusitis","Hearing","Tonsils","Voice"],lang:["English","Hindi"],timings:"Mon–Sat: 10AM–2PM, 5–8PM",phone:"+91 32109 87654",about:"Dr. Neha Gupta is an ENT specialist with expertise in ear surgery, sinusitis treatment and voice disorders.",nextSlot:"Today, 5:15 PM",servedToday:11,totalPat:1789,joined:false},
+  {id:8,name:"Dr. Vikram Nair",spec:"Cardiologist",clinic:"Heartbeat Cardiac Centre",addr:"11, Greater Kailash, New Delhi",dist:3.4,rating:4.8,reviews:389,queue:5,avgTime:15,status:"busy",fee:1500,exp:25,av:"VN",avCls:"av-cardio",tags:["Bypass","Stress Test","Holter","Pacemaker"],lang:["English","Hindi","Malayalam"],timings:"Mon–Thu: 11AM–4PM",phone:"+91 21098 76543",about:"Dr. Vikram Nair is a senior cardiologist with 25 years of experience, pioneer in minimally invasive cardiac procedures.",nextSlot:"Tomorrow, 11AM",servedToday:7,totalPat:2956,joined:false},
+];
+
+// ═══════════════════════════════════════════════════════
+//  STATE — single source of truth
+// ═══════════════════════════════════════════════════════
+const ST = {
+  // shared
+  doctors: JSON.parse(JSON.stringify(DOCS)),
+  // patient
+  patPage: 'home',
+  filter: 'All',
+  sort: 'distance',
+  search: '',
+  emergency: false,
+  selectedDocId: null,
+  queueMode: 'live',
+  selectedSlot: null,
+  userQueue: [],  // {docId, token, pos, joinedAt, estWait}
+  notifications: [
+    {id:1,icon:'⏱️',title:'Almost your turn!',body:'Dr. Ananya Sharma — 1 patient ahead. ~7 min.',time:'2 min ago',read:false},
+    {id:2,icon:'✅',title:'Queue Joined!',body:'Token #7 — SmileFirst Dental Studio.',time:'1 hr ago',read:false},
+    {id:3,icon:'🟢',title:'Doctor Now Available',body:'Dr. Amit Verma has opened the queue.',time:'2 hr ago',read:true},
+    {id:4,icon:'💊',title:'Health Tip',body:'Annual checkup packages starting ₹299.',time:'1 day ago',read:true},
+  ],
+  // doctor
+  loggedDoc: null,
+  docTab: 'overview',
+};
+
+// ═══════════════════════════════════════════════════════
+//  SCREEN NAVIGATION (no flicker — simple display toggle)
+// ═══════════════════════════════════════════════════════
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════════════════
+//  LANDING
+// ═══════════════════════════════════════════════════════
+function goPatient() {
+  goScreen('s-patient');
+  patNav('home');
+  startRealtime();
+}
+
+function goDocLogin() {
+  goScreen('s-doclogin');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOCTOR LOGIN
+// ═══════════════════════════════════════════════════════
+function togglePwd() {
+  const f = document.getElementById('docPwd');
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+
+function doDocLogin() {
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…';
+  btn.style.opacity = '0.7';
+  setTimeout(() => {
+    ST.loggedDoc = JSON.parse(JSON.stringify(ST.doctors[1])); // Dr. Kapoor default
+    enterDoctorDash();
+    btn.textContent = 'Sign In to Dashboard';
+    btn.style.opacity = '1';
+  }, 900);
+}
+
+function quickLogin(idx) {
+  ST.loggedDoc = JSON.parse(JSON.stringify(ST.doctors[idx]));
+  enterDoctorDash();
+}
+
+function enterDoctorDash() {
+  goScreen('s-docdash');
+  document.getElementById('dd-name').textContent = ST.loggedDoc.name;
+  document.getElementById('dd-spec').textContent = ST.loggedDoc.spec + ' · ' + ST.loggedDoc.clinic;
+  switchTab('overview', document.querySelector('.doc-tab[data-tab="overview"]'));
+  startRealtime();
+  toast(`👋 Welcome, ${ST.loggedDoc.name}!`, 'success');
+}
+
+function doDocLogout() {
+  stopRealtime();
+  ST.loggedDoc = null;
+  goScreen('s-landing');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOCTOR TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(tab, el) {
+  ST.docTab = tab;
+  document.querySelectorAll('.doc-tab').forEach(b => { b.classList.remove('chip-on'); b.classList.add('chip-off'); });
+  if (el) { el.classList.remove('chip-off'); el.classList.add('chip-on'); }
+  const fns = { overview: renderOverview, queue: renderDocQueue, appts: renderAppts, analytics: renderAnalytics, settings: renderDocSettings };
+  if (fns[tab]) fns[tab]();
+}
+
+// helper: get fresh doc data from master array
+function liveDoc() {
+  const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+  if (m) ST.loggedDoc = JSON.parse(JSON.stringify(m));
+  return ST.loggedDoc;
+}
+
+// ── Overview ───────────────────────────────────────────
+function renderOverview() {
+  const d = liveDoc();
+  const wait = calcWait(d);
+  set('dd-content', `
+    <div class="fu" style="background:${statusGrad(d.status)};border:1.5px solid ${statusBorder(d.status)};border-radius:18px;padding:18px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:${statusTxt(d.status)};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Clinic Status</div>
+          <div style="font-size:22px;font-weight:900;color:${statusTxt(d.status)};">${sIcon(d.status)} ${cap(d.status)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button onclick="setDocStatus('available')" class="btn-sm btn" style="background:${d.status==='available'?'#16A34A':'#F0FDF4'};color:${d.status==='available'?'white':'#16A34A'};border:1.5px solid #16A34A;width:auto;">🟢 Open</button>
+          <button onclick="setDocStatus('busy')"      class="btn-sm btn" style="background:${d.status==='busy'?'#CA8A04':'#FFFBEB'};color:${d.status==='busy'?'white':'#CA8A04'};border:1.5px solid #CA8A04;width:auto;">🟡 Busy</button>
+          <button onclick="setDocStatus('closed')"    class="btn-sm btn" style="background:${d.status==='closed'?'#DC2626':'#FEF2F2'};color:${d.status==='closed'?'white':'#DC2626'};border:1.5px solid #DC2626;width:auto;">🔴 Close</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#64748B;font-weight:600;">📍 ${d.clinic} &nbsp;·&nbsp; ⏱ ${d.timings.split(',')[0]}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div class="stat-box fu d1"><div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Queue Now</div><div id="ov-q" style="font-size:42px;font-weight:900;color:#2563EB;line-height:1;">${d.queue}</div><div style="font-size:12px;color:#94A3B8;margin-top:3px;">patients waiting</div></div>
+      <div class="stat-box fu d2"><div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Est. Wait</div><div id="ov-w" style="font-size:42px;font-weight:900;color:#F59E0B;line-height:1;">${wait}</div><div style="font-size:12px;color:#94A3B8;margin-top:3px;">minutes</div></div>
+      <div class="stat-box fu d3"><div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Served Today</div><div style="font-size:42px;font-weight:900;color:#10B981;line-height:1;">${d.servedToday}</div><div style="font-size:12px;color:#94A3B8;margin-top:3px;">patients done</div></div>
+      <div class="stat-box fu d4"><div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Rating</div><div style="font-size:42px;font-weight:900;color:#F59E0B;line-height:1;">${d.rating}</div><div style="font-size:12px;color:#94A3B8;margin-top:3px;">⭐ (${d.reviews})</div></div>
+    </div>
+
+    <div class="card fu d3" style="padding:20px;margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:16px;">⚡ Queue Controls</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:16px;">
+        <button class="cbtn" style="background:#FEE2E2;color:#DC2626;" onclick="adjQ(-1)">−</button>
+        <div style="text-align:center;">
+          <div id="ov-qc" style="font-size:60px;font-weight:900;line-height:1;color:#0F172A;">${d.queue}</div>
+          <div style="font-size:12px;color:#94A3B8;margin-top:4px;">in queue</div>
+        </div>
+        <button class="cbtn" style="background:#DCFCE7;color:#16A34A;" onclick="adjQ(1)">+</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <button onclick="serveNext()" style="padding:10px;border-radius:11px;border:none;background:#F0FDF4;color:#16A34A;font-size:12px;font-weight:700;cursor:pointer;">✅ Served</button>
+        <button onclick="doClearQueue()" style="padding:10px;border-radius:11px;border:none;background:#FEF2F2;color:#DC2626;font-size:12px;font-weight:700;cursor:pointer;">🧹 Clear</button>
+        <button onclick="adjQ(1);toast('Walk-in added','info')" style="padding:10px;border-radius:11px;border:none;background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:700;cursor:pointer;">➕ Walk-in</button>
+      </div>
+    </div>
+
+    <div class="card fu d4" style="padding:18px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:800;">⏱ Avg Consultation Time</span>
+        <span id="avg-lbl" style="background:#2563EB;color:white;padding:5px 13px;border-radius:10px;font-size:13px;font-weight:700;">${d.avgTime} min</span>
+      </div>
+      <input type="range" min="3" max="30" value="${d.avgTime}" id="avg-slider" oninput="updateAvg(this.value)" style="width:100%;accent-color:#2563EB;"/>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;margin-top:5px;"><span>3 min</span><span>30 min</span></div>
+    </div>
+
+    <div class="card fu d5" style="padding:18px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:14px;">📋 Today's Patients</div>
+      ${todayRows(d)}
+    </div>
+  `);
+}
+
+// ── Queue Tab ──────────────────────────────────────────
+function renderDocQueue() {
+  const d = liveDoc();
+  set('dd-content', `
+    <div class="fu" style="background:linear-gradient(135deg,#EFF6FF,#F0F9FF);border:1.5px solid #BFDBFE;border-radius:18px;padding:18px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span style="font-size:16px;font-weight:800;">Live Queue</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="pdot" style="background:#10B981;width:8px;height:8px;"></span>
+          <span style="font-size:12px;font-weight:700;color:#16A34A;">LIVE</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div style="background:white;border-radius:13px;padding:14px;text-align:center;"><div id="qt-q" style="font-size:34px;font-weight:900;color:#2563EB;">${d.queue}</div><div style="font-size:11px;color:#94A3B8;">In Queue</div></div>
+        <div style="background:white;border-radius:13px;padding:14px;text-align:center;"><div style="font-size:34px;font-weight:900;color:#F59E0B;">${calcWait(d)}</div><div style="font-size:11px;color:#94A3B8;">Min Wait</div></div>
+        <div style="background:white;border-radius:13px;padding:14px;text-align:center;"><div style="font-size:34px;font-weight:900;color:#10B981;">${d.servedToday}</div><div style="font-size:11px;color:#94A3B8;">Served</div></div>
+      </div>
+    </div>
+    <div class="card fu d1" style="padding:18px;margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:14px;">Controls</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:16px;">
+        <button class="cbtn" style="background:#FEE2E2;color:#DC2626;width:52px;height:52px;" onclick="adjQ(-1)">−</button>
+        <div id="qt-qc" style="font-size:64px;font-weight:900;line-height:1;">${d.queue}</div>
+        <button class="cbtn" style="background:#DCFCE7;color:#16A34A;width:52px;height:52px;" onclick="adjQ(1)">+</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button onclick="serveNext()" style="padding:12px;border-radius:12px;border:none;background:#F0FDF4;color:#16A34A;font-weight:700;font-size:13px;cursor:pointer;">✅ Mark Served</button>
+        <button onclick="doClearQueue()" style="padding:12px;border-radius:12px;border:none;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:13px;cursor:pointer;">🧹 Clear Queue</button>
+        <button onclick="adjQ(1);toast('Walk-in added','info')" style="padding:12px;border-radius:12px;border:none;background:#EFF6FF;color:#2563EB;font-weight:700;font-size:13px;cursor:pointer;">➕ Walk-in</button>
+        <button onclick="toast('📢 Next patient called!','success')" style="padding:12px;border-radius:12px;border:none;background:#FDF4FF;color:#9333EA;font-weight:700;font-size:13px;cursor:pointer;">📢 Call Next</button>
+      </div>
+    </div>
+    <div class="card fu d2" style="padding:18px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:14px;">Waiting List</div>
+      ${queueList(d)}
+    </div>
+  `);
+}
+
+// ── Appointments ───────────────────────────────────────
+function renderAppts() {
+  const slots = genSlotData();
+  set('dd-content', `
+    <div class="card fu" style="padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span style="font-size:16px;font-weight:800;">Today's Appointments</span>
+        <span style="background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;">${slots.filter(s=>s.booked).length} booked</span>
+      </div>
+      ${slots.map(s=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F1F5F9;">
+        <div style="width:52px;text-align:center;flex-shrink:0;">
+          <div style="font-size:13px;font-weight:800;color:#0F172A;">${s.time}</div>
+          <div style="font-size:10px;color:#94A3B8;">${s.period}</div>
+        </div>
+        <div style="flex:1;padding:9px 13px;border-radius:11px;background:${s.booked?'#EFF6FF':'#F8FAFC'};border:1px solid ${s.booked?'#BFDBFE':'#E2E8F0'};">
+          ${s.booked?`<div style="font-size:13px;font-weight:700;color:#0F172A;">${s.name}</div><div style="font-size:11px;color:#64748B;">${s.reason}</div>`:`<div style="font-size:12px;color:#CBD5E1;font-weight:600;">Available</div>`}
+        </div>
+        ${s.booked?`<button onclick="toast('📞 Calling ${s.name}…','info')" style="width:32px;height:32px;border-radius:9px;border:none;background:#F1F5F9;cursor:pointer;font-size:15px;">📞</button>`:``}
+      </div>`).join('')}
+    </div>
+  `);
+}
+
+// ── Analytics ──────────────────────────────────────────
+function renderAnalytics() {
+  const d = liveDoc();
+  const week = [9,14,11,18,15,20,d.servedToday];
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Today'];
+  const mx = Math.max(...week);
+  set('dd-content', `
+    <div class="card fu" style="padding:18px;margin-bottom:14px;">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px;">This Week</div>
+      <div style="font-size:12px;color:#94A3B8;margin-bottom:18px;">Patients served per day</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:120px;">
+        ${week.map((v,i)=>`
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="font-size:10px;font-weight:700;color:${i===6?'#2563EB':'#94A3B8'};">${v}</div>
+          <div style="width:100%;border-radius:6px 6px 0 0;background:${i===6?'linear-gradient(180deg,#2563EB,#1D4ED8)':'#E2E8F0'};height:${Math.round((v/mx)*90)+10}px;"></div>
+          <div style="font-size:10px;font-weight:600;color:${i===6?'#2563EB':'#94A3B8'};">${days[i]}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      ${[['👥','Total Patients',d.totalPat.toLocaleString(),'#2563EB'],['⭐','Avg Rating',d.rating+'★','#F59E0B'],['⏱','Avg Queue/Day','12','#8B5CF6'],['🔄','Repeat Patients','68%','#10B981']].map(([icon,lbl,val,col])=>`
+      <div class="stat-box fu"><div style="font-size:24px;margin-bottom:8px;">${icon}</div><div style="font-size:26px;font-weight:900;color:${col};">${val}</div><div style="font-size:12px;color:#94A3B8;margin-top:3px;">${lbl}</div></div>`).join('')}
+    </div>
+    <div class="card fu d3" style="padding:18px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:14px;">Common Visit Reasons</div>
+      ${[['General Checkup',42],['Follow-up',28],['Prescription',18],['Emergency',8],['Other',4]].map(([lbl,pct])=>`
+      <div style="margin-bottom:11px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;"><span style="font-weight:600;color:#475569;">${lbl}</span><span style="font-weight:700;">${pct}%</span></div>
+        <div class="qbar"><div class="qfill" style="width:${pct}%;background:linear-gradient(90deg,#2563EB,#0284C7);"></div></div>
+      </div>`).join('')}
+    </div>
+  `);
+}
+
+// ── Settings ───────────────────────────────────────────
+function renderDocSettings() {
+  const d = liveDoc();
+  set('dd-content', `
+    <div class="card fu" style="padding:22px;margin-bottom:14px;text-align:center;">
+      <div class="av ${d.avCls}" style="width:80px;height:80px;border-radius:22px;font-size:26px;margin:0 auto 14px;">${d.av}</div>
+      <div style="font-size:20px;font-weight:900;">${d.name}</div>
+      <div style="font-size:14px;color:#2563EB;font-weight:600;margin:4px 0;">${d.spec}</div>
+      <div style="font-size:13px;color:#64748B;">${d.clinic}</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+        <span style="background:#EFF6FF;color:#2563EB;font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;">${d.exp} yrs exp</span>
+        <span style="background:#F0FDF4;color:#16A34A;font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;">₹${d.fee}/consult</span>
+        <span style="background:#FDF4FF;color:#9333EA;font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;">⭐ ${d.rating}</span>
+      </div>
+    </div>
+    ${['🏥 Clinic Information','💳 Fees & Billing','🔔 Notifications','🌐 Languages','📋 Expertise','🔒 Security','📞 Support'].map(item=>`
+    <div onclick="toast('⚙️ ${item.replace(/[🏥💳🔔🌐📋🔒📞]/u,'')} — coming soon!','info')" class="card clickable fu" style="padding:15px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:20px;width:40px;height:40px;border-radius:11px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${item.split(' ')[0]}</div>
+      <div style="flex:1;font-size:14px;font-weight:700;">${item.slice(2)}</div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`).join('')}
+    <button onclick="doDocLogout()" class="btn btn-red" style="margin-top:8px;">🚪 Logout from Dashboard</button>
+  `);
+}
+
+// ── Doctor queue helpers ───────────────────────────────
+function adjQ(delta) {
+  const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+  if (!m) return;
+  m.queue = Math.max(0, Math.min(20, m.queue + delta));
+  if (m.queue === 0 && m.status !== 'closed') m.status = 'available';
+  else if (m.queue >= 6 && m.status === 'available') m.status = 'busy';
+  ST.loggedDoc = JSON.parse(JSON.stringify(m));
+
+  // update counters without full re-render
+  ['ov-q','ov-qc','qt-q','qt-qc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = m.queue; el.style.animation='none'; void el.offsetWidth; el.style.animation='pop 0.25s ease'; }
+  });
+  const we = document.getElementById('ov-w');
+  if (we) we.textContent = calcWait(m);
+
+  toast(delta > 0 ? `➕ Queue: ${m.queue}` : m.queue === 0 ? '✅ Queue empty!' : `✅ Served. Queue: ${m.queue}`, delta > 0 ? 'info' : 'success');
+}
+
+function serveNext() { adjQ(-1); const m=ST.doctors.find(d=>d.id===ST.loggedDoc.id); if(m){m.servedToday++;ST.loggedDoc.servedToday=m.servedToday;} }
+
+function doClearQueue() {
+  openModal(`
+    <div style="padding:24px;text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">🧹</div>
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:8px;">Clear entire queue?</h3>
+      <p style="font-size:14px;color:#64748B;margin-bottom:22px;">All ${ST.loggedDoc.queue} waiting patients will be removed.</p>
+      <button onclick="confirmClear();closeModal();" class="btn btn-red" style="margin-bottom:10px;">Yes, Clear</button>
+      <button onclick="closeModal()" class="btn btn-ghost">Cancel</button>
+    </div>`);
+}
+
+function confirmClear() {
+  const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+  if (m) { m.queue = 0; m.status = 'available'; ST.loggedDoc = JSON.parse(JSON.stringify(m)); }
+  toast('🧹 Queue cleared!', 'success');
+  if (ST.docTab === 'queue') renderDocQueue();
+  else if (ST.docTab === 'overview') renderOverview();
+}
+
+function setDocStatus(status) {
+  const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+  if (m) { m.status = status; ST.loggedDoc = JSON.parse(JSON.stringify(m)); }
+  toast(`📍 Status → ${cap(status)}`, 'success');
+  renderOverview();
+}
+
+function updateAvg(val) {
+  const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+  if (m) { m.avgTime = parseInt(val); ST.loggedDoc.avgTime = parseInt(val); }
+  const lbl = document.getElementById('avg-lbl');
+  if (lbl) lbl.textContent = val + ' min';
+  const we = document.getElementById('ov-w');
+  if (we) we.textContent = calcWait(ST.loggedDoc);
+}
+
+function todayRows(d) {
+  const names=['Amit S.','Sneha P.','Rohit K.','Deepa N.','Vivek J.'];
+  const reasons=['Follow-up','Checkup','Fever','BP Check','Prescription'];
+  const times=['9:15 AM','9:45 AM','10:20 AM','10:45 AM','11:10 AM'];
+  const statuses=['done','done','current','waiting','waiting'];
+  return names.map((name,i)=>`
+  <div class="pat-row">
+    <div style="width:32px;height:32px;border-radius:9px;background:${statuses[i]==='current'?'#DBEAFE':statuses[i]==='done'?'#DCFCE7':'#F1F5F9'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${statuses[i]==='current'?'#2563EB':statuses[i]==='done'?'#16A34A':'#64748B'};flex-shrink:0;">#${i+1}</div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${name}</div><div style="font-size:11px;color:#94A3B8;">${reasons[i]} · ${times[i]}</div></div>
+    <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;background:${statuses[i]==='done'?'#DCFCE7':statuses[i]==='current'?'#DBEAFE':'#F1F5F9'};color:${statuses[i]==='done'?'#16A34A':statuses[i]==='current'?'#2563EB':'#64748B'};">${statuses[i]==='done'?'✓ Done':statuses[i]==='current'?'● Now':'Waiting'}</span>
+  </div>`).join('');
+}
+
+function queueList(d) {
+  if (d.queue === 0) return `<div style="text-align:center;padding:24px;color:#94A3B8;"><div style="font-size:34px;margin-bottom:8px;">🎉</div><div style="font-weight:600;">Queue is empty!</div></div>`;
+  const names=['Rahul K.','Sneha P.','Arun M.','Deepa N.','Vivek J.','Meena R.','Arjun S.','Pooja T.'];
+  const reasons=['Checkup','Follow-up','Fever','BP Check','Prescription','Consult','Test Review','Vaccination'];
+  let html='';
+  for(let i=1;i<=Math.min(d.queue,8);i++){
+    html+=`<div class="pat-row"><div style="width:32px;height:32px;border-radius:9px;background:${i===1?'#DBEAFE':'#F1F5F9'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i===1?'#2563EB':'#64748B'};flex-shrink:0;">#${i}</div><div style="flex:1;"><div style="font-size:13px;font-weight:700;">${names[i-1]||'Patient '+i}</div><div style="font-size:11px;color:#94A3B8;">${reasons[i-1]||'General'} · ~${i*d.avgTime} min</div></div>${i===1?`<span style="font-size:11px;background:#DBEAFE;color:#2563EB;padding:4px 10px;border-radius:8px;font-weight:700;">● Now</span>`:''}</div>`;
+  }
+  if(d.queue>8) html+=`<div style="text-align:center;padding:10px;font-size:12px;color:#94A3B8;font-weight:600;">+${d.queue-8} more waiting</div>`;
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT NAVIGATION — KEY FIX: single function, always renders
+// ═══════════════════════════════════════════════════════
+function patNav(page) {
+  ST.patPage = page;
+  // Update bottom nav highlight
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const navMap = { home:'pnav-home', myqueue:'pnav-myqueue', notifications:'pnav-notifications', profile:'pnav-profile' };
+  const nb = document.getElementById(navMap[page]);
+  if (nb) nb.classList.add('on');
+
+  // Always render fresh content — no caching that could cause blank screens
+  window.scrollTo(0,0);
+  switch(page) {
+    case 'home':          renderHome(); break;
+    case 'myqueue':       renderMyQueue(); break;
+    case 'notifications': renderNotifications(); break;
+    case 'profile':       renderProfile(); break;
+    case 'detail':        renderDetail(); break;
+    case 'joinqueue':     renderJoinQueue(); break;
+    case 'confirm':       renderConfirm(); break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — HOME
+// ═══════════════════════════════════════════════════════
+function renderHome() {
+  // Ensure top bar & bottom nav are visible
+  document.getElementById('pat-topbar').style.display = '';
+  document.querySelectorAll('.botnav').forEach(n => n.style.display = '');
+
+  const list = filteredDocs();
+  const specList = ['All','General Physician','Dentist','Cardiologist','Dermatologist','Orthopedic','Pediatrician','ENT'];
+  const specEmoji = ['🔍','🩺','🦷','❤️','✨','🦴','👶','👂'];
+
+  set('pat-content', `
+  <div class="content" style="padding-top:12px;">
+    <!-- Location -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:#64748B;">
+      <span class="pdot" style="background:#10B981;width:8px;height:8px;"></span>
+      <span id="loc-txt">📍 Connaught Place, New Delhi</span>
+      <button onclick="changeLocation()" style="color:#2563EB;font-weight:700;background:none;border:none;font-size:13px;cursor:pointer;">Change</button>
+    </div>
+
+    <!-- Search -->
+    <div style="position:relative;margin-bottom:12px;">
+      <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="pat-search" class="inp" style="padding-left:40px;padding-right:44px;" placeholder="Search doctors, specialties, clinics…" value="${ST.search}" oninput="ST.search=this.value;renderDoctorCards()"/>
+      <button onclick="toast('🎤 Voice search — speak now…','info')" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#2563EB,#0284C7);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+    </div>
+
+    <!-- Emergency -->
+    <div style="background:linear-gradient(135deg,#FFF1F2,#FEF2F2);border:1.5px solid #FECACA;border-radius:13px;padding:11px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:15px;">⚡</span>
+        <div><div style="font-size:13px;font-weight:700;color:#DC2626;">Emergency Mode</div><div style="font-size:11px;color:#F87171;">Show only available doctors</div></div>
+      </div>
+      <label class="sw" style="transform:scale(0.85);"><input type="checkbox" ${ST.emergency?'checked':''} onchange="ST.emergency=this.checked;renderDoctorCards();if(ST.emergency)toast('🚨 Emergency Mode ON','warning');"><span class="sl"></span></label>
+    </div>
+
+    <!-- Ticker -->
+    <div style="background:#EFF6FF;border-radius:13px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;overflow:hidden;">
+      <div style="background:#FEE2E2;color:#DC2626;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+        <span class="pdot" style="background:#DC2626;width:5px;height:5px;"></span>LIVE
+      </div>
+      <div class="ticker-wrap" style="flex:1;">
+        <div class="ticker-inner" style="font-size:12px;color:#2563EB;font-weight:600;">
+          &nbsp;&nbsp;Dr. Sharma — 3 waiting (21 min)&nbsp;•&nbsp;Dr. Kapoor — Available now!&nbsp;•&nbsp;Dr. Joshi — 2 waiting (16 min)&nbsp;•&nbsp;Dr. Gupta — 4 waiting (32 min)&nbsp;•&nbsp;Dr. Sharma — 3 waiting (21 min)&nbsp;•&nbsp;Dr. Kapoor — Available now!&nbsp;&nbsp;
+        </div>
+      </div>
+    </div>
+
+    <!-- Specialties -->
+    <div style="margin-bottom:13px;">
+      <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:9px;">Specialties</div>
+      <div class="sx" style="display:flex;gap:7px;" id="spec-chips">
+        ${specList.map((s,i)=>`<div class="chip ${s===ST.filter?'chip-on':'chip-off'}" onclick="setFilter('${s}',this)">${specEmoji[i]} ${s==='All'?'All':s.replace(' Physician','').replace('ologist','').replace('ician','')}</div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Sort + Count -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+      <span id="doc-count" style="font-size:15px;font-weight:800;color:#0F172A;">${list.length} Doctors Nearby</span>
+      <select id="sort-sel" onchange="ST.sort=this.value;renderDoctorCards()" style="font-size:12px;border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;background:white;color:#475569;outline:none;cursor:pointer;font-weight:600;">
+        <option value="distance" ${ST.sort==='distance'?'selected':''}>📍 Nearest</option>
+        <option value="wait"     ${ST.sort==='wait'?'selected':''}>⏱ Shortest Wait</option>
+        <option value="rating"   ${ST.sort==='rating'?'selected':''}>⭐ Top Rated</option>
+        <option value="queue"    ${ST.sort==='queue'?'selected':''}>👥 Least Queue</option>
+      </select>
+    </div>
+
+    <!-- Cards -->
+    <div id="doc-grid"></div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:18px;">
+      <div class="card" style="padding:13px;text-align:center;"><div style="font-size:22px;font-weight:900;color:#2563EB;">${ST.doctors.length}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Nearby</div></div>
+      <div class="card" style="padding:13px;text-align:center;"><div style="font-size:22px;font-weight:900;color:#10B981;">${ST.doctors.filter(d=>d.status==='available').length}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Available</div></div>
+      <div class="card" style="padding:13px;text-align:center;"><div style="font-size:22px;font-weight:900;color:#F59E0B;">4.7★</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Avg Rating</div></div>
+    </div>
+  </div>`);
+  renderDoctorCards();
+}
+
+function renderDoctorCards() {
+  const grid = document.getElementById('doc-grid');
+  if (!grid) return;
+  const list = filteredDocs();
+  const cnt = document.getElementById('doc-count');
+  if (cnt) cnt.textContent = `${list.length} Doctor${list.length!==1?'s':''} Nearby`;
+
+  if (list.length === 0) {
+    grid.innerHTML = `<div style="text-align:center;padding:48px 0;"><div style="font-size:44px;margin-bottom:12px;">🔍</div><div style="font-size:15px;font-weight:700;color:#475569;margin-bottom:6px;">No doctors found</div><div style="font-size:13px;color:#94A3B8;">Try different filters or search</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((doc,i) => {
+    const wait = calcWait(doc);
+    const qpct = Math.min(100,(doc.queue/15)*100);
+    const qcol = doc.status==='closed'?'#94A3B8':doc.queue===0?'#10B981':doc.queue<=3?'#10B981':doc.queue<=7?'#F59E0B':'#EF4444';
+    const qbg  = doc.status==='closed'?'#F8FAFC':doc.queue<=3?'#F0FDF4':doc.queue<=7?'#FFFBEB':'#FFF1F2';
+    return `
+    <div class="card clickable fu" style="margin-bottom:12px;animation-delay:${i*0.05}s;" onclick="openDetail(${doc.id})">
+      <div style="padding:16px;">
+        <div style="display:flex;gap:13px;margin-bottom:13px;">
+          <div class="av ${doc.avCls}" style="width:54px;height:54px;border-radius:15px;font-size:17px;">${doc.av}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:start;justify-content:space-between;gap:7px;">
+              <div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${doc.name}</div><div style="font-size:12px;color:#2563EB;font-weight:600;margin-top:2px;">${doc.spec}</div></div>
+              <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;" class="${sCls(doc.status)}">${sIcon(doc.status)} ${cap(doc.status)}</span>
+            </div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🏥 ${doc.clinic}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;flex-wrap:wrap;">
+              <span style="color:#64748B;">⭐ <strong style="color:#0F172A;">${doc.rating}</strong> <span style="color:#94A3B8;">(${doc.reviews})</span></span>
+              <span style="color:#CBD5E1;">|</span><span style="color:#64748B;">📍 ${doc.dist}km</span>
+              <span style="color:#CBD5E1;">|</span><span style="color:#64748B;">₹${doc.fee}</span>
+            </div>
+          </div>
+        </div>
+        <div style="background:${qbg};border-radius:13px;padding:11px;margin-bottom:11px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;">LIVE QUEUE</span>
+            <span style="font-size:11px;font-weight:700;color:${qcol};">${doc.status==='closed'?'Closed':doc.queue===0?'No Wait!':doc.queue<=3?'Short Queue':doc.queue<=7?'Moderate':'Long Queue'}</span>
+          </div>
+          <div class="qbar" style="margin-bottom:6px;"><div class="qfill" style="width:${qpct}%;background:${qcol};"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:5px;"><span class="pdot" style="background:${qcol};width:6px;height:6px;"></span><span style="font-size:12px;color:#64748B;">${doc.status==='closed'?'Opens later':`${doc.queue} patient${doc.queue!==1?'s':''} waiting`}</span></div>
+            ${doc.status!=='closed'?`<span style="font-size:12px;font-weight:800;color:#0F172A;">⏱ ~${wait} min</span>`:`<span style="font-size:11px;color:#94A3B8;">Opens 6 PM</span>`}
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;">
+          ${doc.status!=='closed'?`
+          <button onclick="event.stopPropagation();quickJoin(${doc.id})" style="flex:1;padding:10px;border-radius:11px;border:none;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:white;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(37,99,235,0.22);">
+            ${doc.joined?'✓ Joined':'+ Join Queue'}
+          </button>
+          <button onclick="event.stopPropagation();bookSlot(${doc.id})" style="padding:10px 14px;border-radius:11px;border:1.5px solid var(--border);background:white;color:#475569;font-size:13px;font-weight:600;cursor:pointer;">📅</button>`:`
+          <button style="flex:1;padding:10px;border-radius:11px;border:1.5px solid var(--border);background:#F8FAFC;color:#94A3B8;font-size:13px;font-weight:600;cursor:not-allowed;" disabled>Closed</button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — DETAIL PAGE
+// ═══════════════════════════════════════════════════════
+function openDetail(id) {
+  ST.selectedDocId = id;
+  ST.patPage = 'detail';
+  renderDetail();
+}
+
+function renderDetail() {
+  const doc = ST.doctors.find(d => d.id === ST.selectedDocId);
+  if (!doc) { patNav('home'); return; }
+  const wait = calcWait(doc);
+  const qcol = doc.status==='closed'?'#94A3B8':doc.queue===0?'#10B981':doc.queue<=3?'#10B981':doc.queue<=7?'#F59E0B':'#EF4444';
+
+  set('pat-content', `
+  <div style="max-width:520px;margin:0 auto;">
+    <!-- Back Bar -->
+    <div style="position:sticky;top:61px;z-index:50;background:rgba(255,255,255,0.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;gap:11px;">
+      <button onclick="patNav('home')" style="width:34px;height:34px;border-radius:10px;border:none;background:#F1F5F9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:800;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${doc.name}</span>
+      <button onclick="toast('🔗 Link copied!','success')" style="width:34px;height:34px;border-radius:10px;border:none;background:#F1F5F9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+    </div>
+    <div class="content" style="padding-top:14px;">
+      <!-- Hero -->
+      <div style="display:flex;gap:15px;margin-bottom:18px;" class="fu">
+        <div class="av ${doc.avCls}" style="width:78px;height:78px;border-radius:20px;font-size:24px;flex-shrink:0;">${doc.av}</div>
+        <div style="flex:1;">
+          <h1 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:4px;">${doc.name}</h1>
+          <div style="font-size:13px;color:#2563EB;font-weight:700;margin-bottom:6px;">${doc.spec}</div>
+          <div style="font-size:13px;color:#64748B;">⭐ <strong style="color:#0F172A;">${doc.rating}</strong> (${doc.reviews}) &nbsp;·&nbsp; ${doc.exp} yrs &nbsp;·&nbsp; ₹${doc.fee}</div>
+        </div>
+      </div>
+
+      <!-- Live Queue -->
+      <div style="background:linear-gradient(135deg,#EFF6FF,#F0F9FF);border:1.5px solid #BFDBFE;border-radius:18px;padding:16px;margin-bottom:14px;" class="fu d1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="background:#FEE2E2;color:#DC2626;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;display:flex;align-items:center;gap:3px;"><span class="pdot" style="background:#DC2626;width:5px;height:5px;"></span>LIVE</div>
+            <span style="font-size:13px;font-weight:700;">Queue Status</span>
+          </div>
+          <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;" class="${sCls(doc.status)}">${sIcon(doc.status)} ${cap(doc.status)}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:11px;">
+          <div style="background:white;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:28px;font-weight:900;color:#2563EB;">${doc.queue}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">In Queue</div></div>
+          <div style="background:white;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:28px;font-weight:900;color:#F59E0B;">${wait}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Min Wait</div></div>
+          <div style="background:white;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:28px;font-weight:900;color:#10B981;">${doc.avgTime}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Min/Visit</div></div>
+        </div>
+        <div class="qbar"><div class="qfill" style="width:${Math.min(100,(doc.queue/15)*100)}%;background:${qcol};"></div></div>
+      </div>
+
+      <!-- Info Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;" class="fu d2">
+        ${[['🕐','Timings',doc.timings.split(',')[0]],['📅','Next Slot',doc.nextSlot],['📍','Distance',doc.dist+' km away'],['📞','Phone',doc.phone.slice(0,15)+'…']].map(([icon,lbl,val])=>`
+        <div class="card" style="padding:12px;display:flex;align-items:center;gap:9px;"><div style="font-size:18px;">${icon}</div><div><div style="font-size:10px;color:#94A3B8;font-weight:600;">${lbl}</div><div style="font-size:12px;font-weight:700;color:#0F172A;margin-top:2px;">${val}</div></div></div>`).join('')}
+      </div>
+
+      <!-- About -->
+      <div class="card fu d2" style="padding:16px;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:9px;">About</div>
+        <p style="font-size:13px;color:#475569;line-height:1.7;">${doc.about}</p>
+      </div>
+
+      <!-- Tags -->
+      <div class="card fu d3" style="padding:16px;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:9px;">Expertise</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;">${doc.tags.map(t=>`<span style="background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;">${t}</span>`).join('')}</div>
+      </div>
+
+      <!-- Map -->
+      <div class="map-stub fu d4" style="height:130px;margin-bottom:12px;" onclick="toast('🗺️ Maps coming soon!','info')">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        <div style="font-size:13px;font-weight:700;color:#3B82F6;">${doc.clinic}</div>
+        <div style="font-size:11px;color:#60A5FA;">${doc.addr}</div>
+      </div>
+
+      <!-- Reviews -->
+      <div class="fu d4" style="margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:11px;">Patient Reviews</div>
+        ${sampleReviews().map(r=>`
+        <div class="card" style="padding:13px;margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:30px;height:30px;border-radius:999px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#2563EB;">${r.init}</div>
+              <span style="font-size:13px;font-weight:700;">${r.name}</span>
+            </div>
+            <span style="color:#FCD34D;font-size:12px;">${'★'.repeat(r.stars)}<span style="color:#E2E8F0;">${'★'.repeat(5-r.stars)}</span></span>
+          </div>
+          <p style="font-size:12px;color:#475569;line-height:1.6;margin:0;">${r.text}</p>
+          <div style="font-size:11px;color:#94A3B8;margin-top:6px;">${r.date}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- CTA -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${doc.status!=='closed'?`
+        <button onclick="joinQueue(${doc.id},'live')" class="btn btn-blue">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Join Live Queue — ${doc.queue} waiting (~${wait} min)
+        </button>
+        <button onclick="joinQueue(${doc.id},'book')" class="btn btn-ghost">📅 Book a Time Slot</button>`:`
+        <button class="btn btn-ghost" style="opacity:0.5;cursor:not-allowed;" disabled>🔒 Clinic Currently Closed</button>
+        <button onclick="joinQueue(${doc.id},'book')" class="btn btn-blue">📅 Book Advance Slot</button>`}
+      </div>
+    </div>
+  </div>`);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — JOIN QUEUE SCREEN
+// ═══════════════════════════════════════════════════════
+function joinQueue(id, mode) {
+  ST.selectedDocId = id;
+  ST.queueMode = mode;
+  ST.selectedSlot = null;
+  ST.patPage = 'joinqueue';
+  renderJoinQueue();
+}
+
+function renderJoinQueue() {
+  const doc = ST.doctors.find(d => d.id === ST.selectedDocId);
+  if (!doc) { patNav('home'); return; }
+  const wait = calcWait(doc);
+  const slots = buildSlots();
+
+  set('pat-content', `
+  <div style="max-width:520px;margin:0 auto;">
+    <!-- Back -->
+    <div style="position:sticky;top:61px;z-index:50;background:rgba(255,255,255,0.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;gap:11px;">
+      <button onclick="openDetail(${doc.id})" style="width:34px;height:34px;border-radius:10px;border:none;background:#F1F5F9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:800;">${ST.queueMode==='live'?'Join Live Queue':'Book a Slot'}</span>
+    </div>
+    <div class="content" style="padding-top:14px;">
+
+      <!-- Doc mini card -->
+      <div style="background:#EFF6FF;border-radius:15px;padding:13px;margin-bottom:14px;display:flex;align-items:center;gap:11px;" class="fu">
+        <div class="av ${doc.avCls}" style="width:46px;height:46px;border-radius:13px;font-size:15px;">${doc.av}</div>
+        <div style="flex:1;"><div style="font-size:14px;font-weight:800;">${doc.name}</div><div style="font-size:12px;color:#64748B;">${doc.spec} · ${doc.clinic}</div></div>
+        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;" class="${sCls(doc.status)}">${cap(doc.status)}</span>
+      </div>
+
+      ${ST.queueMode==='live'?`
+      <div class="card fu d1" style="padding:17px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:13px;">Queue Status</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:13px;">
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:#2563EB;">${doc.queue}</div><div style="font-size:11px;color:#94A3B8;">Ahead</div></div>
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:#F59E0B;">${wait}</div><div style="font-size:11px;color:#94A3B8;">Min Wait</div></div>
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:#10B981;">${doc.avgTime}</div><div style="font-size:11px;color:#94A3B8;">Min/Visit</div></div>
+        </div>
+        <div style="background:#EFF6FF;border-radius:11px;padding:11px;font-size:13px;color:#1D4ED8;font-weight:600;">
+          💡 Your slot around <strong>${eta(wait)}</strong>
+        </div>
+      </div>`:`
+      <div class="card fu d1" style="padding:17px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:13px;">Select Time Slot</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;" id="slot-grid">
+          ${slots.map(s=>`
+          <button class="slot-btn" onclick="pickSlot(this,'${s.time}',${s.avail})"
+            style="padding:11px 5px;border-radius:11px;border:1.5px solid ${s.avail?'var(--border)':'#F1F5F9'};background:${s.avail?'white':'#FAFAFA'};cursor:${s.avail?'pointer':'not-allowed'};opacity:${s.avail?1:0.45};transition:all 0.15s;font-family:'Inter',sans-serif;">
+            <div style="font-size:12px;font-weight:700;color:${s.avail?'#0F172A':'#94A3B8'};">${s.time}</div>
+            <div style="font-size:10px;color:${s.avail?'#10B981':'#CBD5E1'};margin-top:2px;font-weight:600;">${s.avail?'✓ Free':'Booked'}</div>
+          </button>`).join('')}
+        </div>
+      </div>`}
+
+      <!-- Form -->
+      <div class="card fu d2" style="padding:17px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:13px;">Your Details</div>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <div><label style="display:block;font-size:11px;font-weight:700;color:#64748B;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Full Name</label><input type="text" id="p-name" class="inp" value="Rahul Kumar"/></div>
+          <div><label style="display:block;font-size:11px;font-weight:700;color:#64748B;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Phone</label><input type="tel" id="p-phone" class="inp" value="+91 98765 43210"/></div>
+          <div><label style="display:block;font-size:11px;font-weight:700;color:#64748B;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Reason</label>
+            <select id="p-reason" class="inp"><option>General Checkup</option><option>Follow-up</option><option>Specific Concern</option><option>Prescription Renewal</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fee -->
+      <div class="card fu d3" style="padding:17px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:11px;">Fee Summary</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;"><span style="color:#64748B;">Consultation</span><span style="font-weight:700;">₹${doc.fee}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;"><span style="color:#64748B;">Platform Fee</span><span style="font-weight:700;color:#10B981;">FREE</span></div>
+        <div style="border-top:1px solid var(--border);padding-top:9px;display:flex;justify-content:space-between;font-size:14px;font-weight:800;"><span>Total</span><span style="color:#2563EB;">₹${doc.fee}</span></div>
+      </div>
+
+      <button onclick="confirmQueue()" class="btn btn-blue" style="margin-bottom:10px;">
+        ${ST.queueMode==='live'?'✅ Confirm — Join Queue':'📅 Confirm Booking'}
+      </button>
+      <p style="font-size:12px;text-align:center;color:#CBD5E1;line-height:1.5;">Position held for 15 mins after your turn. Arrive on time.</p>
+    </div>
+  </div>`);
+}
+
+let _slot = null;
+function pickSlot(el, time, avail) {
+  if (!avail) return;
+  document.querySelectorAll('.slot-btn').forEach(b => {
+    b.style.background='white'; b.style.borderColor='var(--border)'; b.style.color='';
+    b.querySelector('div').style.color='#0F172A';
+  });
+  el.style.background='#2563EB'; el.style.borderColor='#2563EB';
+  el.querySelector('div').style.color='white';
+  _slot = time; ST.selectedSlot = time;
+}
+
+function confirmQueue() {
+  const doc = ST.doctors.find(d => d.id === ST.selectedDocId);
+  if (!doc) return;
+  if (ST.queueMode === 'book' && !ST.selectedSlot) { toast('⚠️ Please select a time slot', 'warning'); return; }
+  const token = Math.floor(Math.random()*14)+3;
+  const wait  = calcWait(doc);
+  if (ST.queueMode === 'live') {
+    doc.joined = true; doc.queue++;
+    ST.userQueue.push({ docId:doc.id, token, pos:doc.queue, joinedAt:nowTime(), estWait:wait });
+  }
+  ST.patPage = 'confirm';
+  renderConfirm(doc, token, wait);
+  toast(`✅ ${ST.queueMode==='live'?'Queue joined':'Slot booked'}! Token #${token}`, 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — CONFIRM SCREEN
+// ═══════════════════════════════════════════════════════
+function renderConfirm(docArg, tokenArg, waitArg) {
+  // Support being called directly (patNav) or with args
+  const doc   = docArg || ST.doctors.find(d => d.id === ST.selectedDocId);
+  const token = tokenArg || '—';
+  const wait  = waitArg || 0;
+  if (!doc) { patNav('home'); return; }
+
+  set('pat-content', `
+  <div style="max-width:520px;margin:0 auto;">
+    <div class="content" style="padding-top:28px;display:flex;flex-direction:column;align-items:center;text-align:center;">
+      <div class="bi" style="width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#10B981,#059669);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 style="font-size:26px;font-weight:900;margin-bottom:8px;">${ST.queueMode==='live'?'Queue Joined!':'Slot Booked!'}</h2>
+      <p style="font-size:14px;color:#94A3B8;margin-bottom:26px;">${ST.queueMode==='live'?'You are in the live queue':'Appointment confirmed for '+ST.selectedSlot}</p>
+
+      <div class="token-card fu d1" style="width:100%;margin-bottom:18px;">
+        <div style="position:relative;z-index:1;">
+          <div style="color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Your Token</div>
+          <div style="font-size:80px;font-weight:900;line-height:1;letter-spacing:-2px;margin-bottom:10px;">#${token}</div>
+          <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.9);">${doc.name}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:18px;">${doc.clinic}</div>
+          <div style="border-top:1px solid rgba(255,255,255,0.2);padding-top:15px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div><div style="font-size:11px;color:rgba(255,255,255,0.5);">Position</div><div style="font-size:18px;font-weight:800;margin-top:2px;">${doc.queue}${ord(doc.queue)}</div></div>
+            <div><div style="font-size:11px;color:rgba(255,255,255,0.5);">Wait</div><div style="font-size:18px;font-weight:800;margin-top:2px;">~${wait}m</div></div>
+            <div><div style="font-size:11px;color:rgba(255,255,255,0.5);">Fee</div><div style="font-size:18px;font-weight:800;margin-top:2px;">₹${doc.fee}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;width:100%;margin-bottom:18px;" class="fu d2">
+        <div class="card" style="padding:13px;text-align:left;"><div style="font-size:17px;margin-bottom:5px;">📍</div><div style="font-size:10px;color:#94A3B8;">Clinic</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${doc.clinic}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">${doc.dist} km away</div></div>
+        <div class="card" style="padding:13px;text-align:left;"><div style="font-size:17px;margin-bottom:5px;">⏰</div><div style="font-size:10px;color:#94A3B8;">Slot Time</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${eta(wait)}</div><div style="font-size:11px;color:#94A3B8;margin-top:2px;">Approx arrival</div></div>
+      </div>
+
+      <div style="background:#EFF6FF;border-radius:15px;padding:13px;width:100%;text-align:left;display:flex;gap:11px;margin-bottom:22px;" class="fu d3">
+        <div style="font-size:18px;">🔔</div>
+        <div><div style="font-size:13px;font-weight:700;color:#1D4ED8;">Smart Alerts Enabled</div><div style="font-size:12px;color:#3B82F6;margin-top:2px;">We'll notify you 10 min before your turn.</div></div>
+      </div>
+
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
+        <button onclick="patNav('myqueue')" class="btn btn-blue">⏱ Track Queue Live</button>
+        <button onclick="patNav('home')" class="btn btn-ghost">← Back to Home</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — MY QUEUE  ← FIXED: find doctors button works
+// ═══════════════════════════════════════════════════════
+function renderMyQueue() {
+  const items = ST.userQueue;
+
+  // Update bottom nav
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const nb = document.getElementById('pnav-myqueue');
+  if (nb) nb.classList.add('on');
+
+  set('pat-content', `
+  <div class="content">
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:16px;">My Queue</h2>
+
+    ${items.length === 0 ? `
+    <div style="text-align:center;padding:64px 0;">
+      <div style="font-size:56px;margin-bottom:16px;">🏥</div>
+      <div style="font-size:16px;font-weight:700;color:#475569;margin-bottom:8px;">No active queues</div>
+      <div style="font-size:13px;color:#94A3B8;margin-bottom:26px;">Find a doctor and join a queue to get started</div>
+      <button onclick="patNav('home')" style="background:linear-gradient(135deg,#2563EB,#1D4ED8);color:white;border:none;border-radius:12px;padding:13px 28px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.28);display:inline-flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Find Doctors
+      </button>
+    </div>` : `
+    <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Active</div>
+    ${items.map(item => {
+      const doc = ST.doctors.find(d => d.id === item.docId);
+      if (!doc) return '';
+      const pos  = Math.max(1, item.pos - 1);
+      const wait = pos * doc.avgTime;
+      return `
+      <div class="card fu" style="padding:17px;margin-bottom:13px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:13px;">
+          <div class="av ${doc.avCls}" style="width:46px;height:46px;border-radius:13px;font-size:15px;">${doc.av}</div>
+          <div style="flex:1;"><div style="font-size:14px;font-weight:800;">${doc.name}</div><div style="font-size:12px;color:#64748B;">${doc.clinic}</div></div>
+          <div style="text-align:right;"><div style="font-size:26px;font-weight:900;color:#2563EB;line-height:1;">#${item.token}</div><div style="font-size:11px;color:#94A3B8;">Token</div></div>
+        </div>
+        <div style="background:#EFF6FF;border-radius:13px;padding:12px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px;"><span style="font-weight:700;">Queue Progress</span><span style="font-weight:700;color:#2563EB;">${pos} ahead</span></div>
+          <div class="qbar" style="height:7px;margin-bottom:6px;"><div class="qfill" style="width:${Math.max(8,100-(pos/15*100))}%;background:linear-gradient(90deg,#10B981,#059669);"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;"><span>Joined ${item.joinedAt}</span><span>~${wait} min wait</span></div>
+        </div>
+        <div style="display:flex;align-items:center;margin-bottom:13px;">
+          ${['Joined','In Queue','Your Turn','Done'].map((step,i)=>`
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+            <div class="step-dot" style="background:${i<=1?'#2563EB':'#E2E8F0'};color:${i<=1?'white':'#94A3B8'};font-size:11px;">${i<=1?'✓':i+1}</div>
+            <span style="font-size:10px;font-weight:600;color:${i<=1?'#2563EB':'#94A3B8'};white-space:nowrap;">${step}</span>
+          </div>${i<3?`<div style="flex:1;height:2px;background:${i<1?'#2563EB':'#E2E8F0'};margin-bottom:16px;"></div>`:''}`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="toast('📍 Maps opened!','info')" style="flex:1;padding:10px;border-radius:11px;border:none;background:#EFF6FF;color:#2563EB;font-size:13px;font-weight:700;cursor:pointer;">🗺 Navigate</button>
+          <button onclick="leaveQueue(${item.token})" style="flex:1;padding:10px;border-radius:11px;border:none;background:#FEF2F2;color:#DC2626;font-size:13px;font-weight:700;cursor:pointer;">✕ Leave</button>
+        </div>
+      </div>`;
+    }).join('')}
+
+    <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;margin-top:6px;">Past Visits</div>
+    ${[{name:'Dr. Kavita Joshi',spec:'Pediatrician',date:'Dec 15, 2024',av:'KJ',avCls:'av-pediatric'},{name:'Dr. Rajiv Kapoor',spec:'Dentist',date:'Nov 28, 2024',av:'RK',avCls:'av-dental'}].map(v=>`
+    <div class="card" style="padding:13px;margin-bottom:9px;display:flex;align-items:center;gap:11px;">
+      <div class="av ${v.avCls}" style="width:38px;height:38px;border-radius:11px;font-size:12px;">${v.av}</div>
+      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${v.name}</div><div style="font-size:11px;color:#94A3B8;">${v.spec} · ${v.date}</div></div>
+      <button onclick="toast('📋 Visit details — coming soon!','info')" style="background:#EFF6FF;color:#2563EB;border:none;border-radius:9px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">View</button>
+    </div>`).join('')}
+    `}
+  </div>`);
+}
+
+function leaveQueue(token) {
+  openModal(`
+    <div style="padding:24px;text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">🚪</div>
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:8px;">Leave Queue?</h3>
+      <p style="font-size:14px;color:#64748B;margin-bottom:22px;">Token #${token} will be cancelled.</p>
+      <button onclick="doLeave(${token});closeModal();" class="btn btn-red" style="margin-bottom:10px;">Yes, Leave</button>
+      <button onclick="closeModal()" class="btn btn-ghost">Keep My Spot</button>
+    </div>`);
+}
+
+function doLeave(token) {
+  ST.userQueue = ST.userQueue.filter(i => i.token !== token);
+  renderMyQueue();
+  toast('✅ Left queue', 'info');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+function renderNotifications() {
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const nb = document.getElementById('pnav-notifications');
+  if (nb) nb.classList.add('on');
+
+  const unread = ST.notifications.filter(n => !n.read).length;
+  set('pat-content', `
+  <div class="content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="font-size:20px;font-weight:900;">Notifications</h2>
+      ${unread>0?`<button onclick="markRead()" style="font-size:12px;color:#2563EB;font-weight:700;background:none;border:none;cursor:pointer;">Mark all read</button>`:''}
+    </div>
+    ${unread>0?`<div style="background:#EFF6FF;border-radius:11px;padding:10px 14px;margin-bottom:13px;font-size:13px;font-weight:600;color:#1D4ED8;">${unread} unread</div>`:''}
+    ${ST.notifications.map(n=>`
+    <div style="display:flex;gap:11px;padding:13px 0;border-bottom:1px solid #F1F5F9;" class="${!n.read?'fu':''}">
+      <div style="width:7px;height:7px;border-radius:50%;background:${!n.read?'#2563EB':'transparent'};border:${n.read?'1.5px solid #E2E8F0':'none'};flex-shrink:0;margin-top:7px;"></div>
+      <div style="width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;background:#F1F5F9;">${n.icon}</div>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:3px;">
+          <span style="font-size:13px;font-weight:700;">${n.title}</span>
+          <span style="font-size:11px;color:#94A3B8;white-space:nowrap;">${n.time}</span>
+        </div>
+        <p style="font-size:12px;color:#64748B;line-height:1.6;">${n.body}</p>
+      </div>
+    </div>`).join('')}
+  </div>`);
+}
+
+function markRead() {
+  ST.notifications.forEach(n => n.read = true);
+  const dot = document.getElementById('notif-dot');
+  if (dot) dot.style.display = 'none';
+  renderNotifications();
+  toast('✓ All read', 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PATIENT — PROFILE  ← FIXED: sign out works, back works
+// ═══════════════════════════════════════════════════════
+function renderProfile() {
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const nb = document.getElementById('pnav-profile');
+  if (nb) nb.classList.add('on');
+
+  set('pat-content', `
+  <div class="content">
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:20px;">Profile</h2>
+
+    <!-- Avatar block -->
+    <div style="text-align:center;margin-bottom:22px;" class="fu">
+      <div style="width:86px;height:86px;border-radius:26px;background:linear-gradient(135deg,#2563EB,#0284C7);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:white;margin:0 auto 12px;">RK</div>
+      <div style="font-size:20px;font-weight:900;">Rahul Kumar</div>
+      <div style="font-size:13px;color:#94A3B8;margin-top:4px;">+91 98765 43210 · rahul@email.com</div>
+      <button onclick="toast('✏️ Edit profile — coming soon!','info')" style="margin-top:11px;background:white;border:1.5px solid var(--border);border-radius:10px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;color:#475569;">Edit Profile</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:20px;" class="fu d1">
+      ${[['14','#2563EB','Visits'],['6','#10B981','Doctors'],['2.4h','#8B5CF6','Saved']].map(([v,c,l])=>`
+      <div class="card" style="padding:13px;text-align:center;"><div style="font-size:22px;font-weight:900;color:${c};">${v}</div><div style="font-size:11px;color:#94A3B8;margin-top:3px;">${l}</div></div>`).join('')}
+    </div>
+
+    <!-- Menu items -->
+    ${[
+      ['❤️','Health Records','0 docs uploaded',false],
+      ['📋','Visit History','14 appointments',false],
+      ['⭐','My Reviews','3 reviews given',false],
+      ['🔔','Notifications','Queue alerts on',false],
+      ['🔒','Privacy & Security','2FA enabled',false],
+      ['🌐','Language','English / हिंदी',false],
+      ['❓','Help & Support','24/7 chat',false],
+    ].map(([icon,lbl,sub])=>`
+    <div onclick="toast('🚧 ${lbl} — coming soon!','info')" class="card clickable fu" style="padding:14px 15px;margin-bottom:8px;display:flex;align-items:center;gap:11px;">
+      <div style="width:38px;height:38px;border-radius:11px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
+      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${lbl}</div><div style="font-size:11px;color:#94A3B8;">${sub}</div></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`).join('')}
+
+    <!-- Sign Out — FIXED: uses openModal so it's clean -->
+    <button onclick="patSignOut()" style="width:100%;padding:14px;border-radius:13px;border:1.5px solid #FECACA;background:#FEF2F2;color:#DC2626;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;margin-bottom:4px;">
+      🚪 Sign Out
+    </button>
+
+    <p style="text-align:center;font-size:11px;color:#CBD5E1;margin-top:14px;">DocQueue v1.0 · Made with ❤️ in India</p>
+  </div>`);
+}
+
+// FIXED: proper sign out — shows confirmation modal, then goes to landing
+function patSignOut() {
+  openModal(`
+    <div style="padding:26px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">👋</div>
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:8px;">Sign Out?</h3>
+      <p style="font-size:14px;color:#64748B;margin-bottom:24px;">You'll be taken back to the home screen.</p>
+      <button onclick="closeModal();doPatSignOut();" class="btn btn-red" style="margin-bottom:10px;">Yes, Sign Out</button>
+      <button onclick="closeModal()" class="btn btn-ghost">Stay Logged In</button>
+    </div>`);
+}
+
+function doPatSignOut() {
+  // Reset patient state
+  ST.userQueue = [];
+  ST.patPage = 'home';
+  ST.filter = 'All';
+  ST.sort = 'distance';
+  ST.search = '';
+  ST.emergency = false;
+  ST.selectedDocId = null;
+  stopRealtime();
+  goScreen('s-landing');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILTERS
+// ═══════════════════════════════════════════════════════
+function setFilter(spec, el) {
+  ST.filter = spec;
+  document.querySelectorAll('#spec-chips .chip').forEach(c => { c.classList.remove('chip-on'); c.classList.add('chip-off'); });
+  if (el) { el.classList.remove('chip-off'); el.classList.add('chip-on'); }
+  renderDoctorCards();
+}
+
+function filteredDocs() {
+  let list = [...ST.doctors];
+  if (ST.emergency) list = list.filter(d => d.status === 'available');
+  if (ST.filter !== 'All') list = list.filter(d => d.spec === ST.filter);
+  if (ST.search) {
+    const q = ST.search.toLowerCase();
+    list = list.filter(d => d.name.toLowerCase().includes(q) || d.spec.toLowerCase().includes(q) || d.clinic.toLowerCase().includes(q) || d.tags.some(t => t.toLowerCase().includes(q)));
+  }
+  switch (ST.sort) {
+    case 'distance': return list.sort((a,b) => a.dist - b.dist);
+    case 'wait':     return list.sort((a,b) => calcWait(a) - calcWait(b));
+    case 'rating':   return list.sort((a,b) => b.rating - a.rating);
+    case 'queue':    return list.sort((a,b) => a.queue - b.queue);
+    default:         return list;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  QUICK ACTIONS
+// ═══════════════════════════════════════════════════════
+function quickJoin(id) {
+  const d = ST.doctors.find(x => x.id === id);
+  if (!d) return;
+  if (d.joined) { toast('✅ Already in this queue','info'); return; }
+  joinQueue(id, 'live');
+}
+function bookSlot(id)   { joinQueue(id, 'book'); }
+
+function changeLocation() {
+  openModal(`
+    <div style="padding:22px;">
+      <h3 style="font-size:17px;font-weight:800;margin-bottom:14px;">Change Location</h3>
+      <button onclick="closeModal();toast('📍 Location updated!','success');" class="btn btn-blue" style="margin-bottom:11px;">📍 Use Current Location</button>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        ${['Connaught Place, Delhi','Lajpat Nagar, Delhi','Dwarka Sector 6, Delhi','Greater Noida','Gurugram, Haryana'].map(loc=>`
+        <button onclick="closeModal();const el=document.getElementById('loc-txt');if(el)el.textContent='📍 ${loc}';toast('📍 ${loc}','success');"
+          style="text-align:left;padding:11px 14px;border-radius:11px;border:1.5px solid var(--border);background:white;font-size:13px;font-weight:600;color:#475569;cursor:pointer;">📍 ${loc}</button>`).join('')}
+      </div>
+    </div>`);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODAL — simple, robust implementation
+// ═══════════════════════════════════════════════════════
+function openModal(html) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div id="modal-bg" class="modal-bg" onclick="bgClose(event)">
+      <div class="modal-box" style="max-width:480px;" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        ${html}
+      </div>
+    </div>`;
+}
+
+function closeModal() {
+  const root = document.getElementById('modal-root');
+  if (root) root.innerHTML = '';
+}
+
+function bgClose(e) {
+  if (e.target.id === 'modal-bg') closeModal();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST — lightweight, no animation library needed
+// ═══════════════════════════════════════════════════════
+function toast(msg, type='info') {
+  const colors = { success:'#059669', error:'#DC2626', warning:'#D97706', info:'#2563EB' };
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.borderLeft = `4px solid ${colors[type]||colors.info}`;
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(() => { el.style.transition='opacity 0.3s'; el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, 2800);
+}
+
+// ═══════════════════════════════════════════════════════
+//  REALTIME SIMULATION — throttled, no lag
+// ═══════════════════════════════════════════════════════
+let _rt = null;
+function startRealtime() {
+  stopRealtime();
+  _rt = setInterval(() => {
+    let changed = false;
+    ST.doctors.forEach(doc => {
+      if (doc.status === 'closed') return;
+      const r = Math.random();
+      if (r < 0.15 && doc.queue > 0)  { doc.queue--; changed = true; }
+      else if (r < 0.10)               { doc.queue = Math.min(15, doc.queue+1); changed = true; }
+      if (doc.queue === 0 && doc.status === 'busy')      { doc.status = 'available'; changed = true; }
+      else if (doc.queue >= 6 && doc.status === 'available') { doc.status = 'busy'; changed = true; }
+    });
+
+    if (!changed) return;
+
+    // Patient home — only update queue bar numbers, no full re-render
+    if (document.getElementById('s-patient').classList.contains('show') && ST.patPage === 'home') {
+      renderDoctorCards();
+    }
+
+    // Doctor dashboard — only update specific counters
+    if (document.getElementById('s-docdash').classList.contains('show') && ST.loggedDoc) {
+      const m = ST.doctors.find(d => d.id === ST.loggedDoc.id);
+      if (m) {
+        ST.loggedDoc.queue = m.queue;
+        ST.loggedDoc.status = m.status;
+        ['ov-q','ov-qc','qt-q','qt-qc'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=m.queue; });
+        const we=document.getElementById('ov-w'); if(we) we.textContent=calcWait(m);
+      }
+    }
+  }, 6000); // 6s interval — smooth, not laggy
+}
+
+function stopRealtime() {
+  if (_rt) { clearInterval(_rt); _rt = null; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+// KEY FIX: set() replaces innerHTML safely and synchronously
+function set(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+function calcWait(d)  { return d.status==='closed'?0:d.queue*d.avgTime; }
+function cap(s)       { return s.charAt(0).toUpperCase()+s.slice(1); }
+function nowTime()    { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function eta(mins)    { const d=new Date(); d.setMinutes(d.getMinutes()+mins); return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function ord(n)       { const s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0]; }
+function sIcon(s)     { return {available:'🟢',busy:'🟡',closed:'🔴'}[s]||'⚫'; }
+function sCls(s)      { return {available:'s-available',busy:'s-busy',closed:'s-closed'}[s]||'s-closed'; }
+function statusGrad(s){ return {available:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',busy:'linear-gradient(135deg,#FFFBEB,#FEF9C3)',closed:'linear-gradient(135deg,#FFF1F2,#FEE2E2)'}[s]; }
+function statusBorder(s){ return {available:'#BBF7D0',busy:'#FDE68A',closed:'#FECACA'}[s]; }
+function statusTxt(s) { return {available:'#16A34A',busy:'#CA8A04',closed:'#DC2626'}[s]; }
+
+function buildSlots() {
+  return [9,9.5,10,10.5,11,11.5,17,17.5,18,18.5,19,19.5].map(h => ({
+    time:`${Math.floor(h)}:${h%1===0?'00':'30'} ${h<12?'AM':'PM'}`,
+    avail: Math.random()>0.35
+  }));
+}
+
+function genSlotData() {
+  const names=['Amit S.','Sneha P.','Ravi K.','Deepa N.','Vivek J.','Meena R.','','','Arjun T.','Pooja M.','',''];
+  const reasons=['Follow-up','Checkup','Fever','BP Check','Prescription','Consult','','','New Patient','Skin Issue','',''];
+  return [9,9.5,10,10.5,11,11.5,17,17.5,18,18.5,19,19.5].map((h,i)=>({
+    time:`${Math.floor(h)}:${h%1===0?'00':'30'}`, period:h<12?'AM':'PM',
+    booked:!!names[i], name:names[i]||'', reason:reasons[i]||''
+  }));
+}
+
+function sampleReviews() {
+  return [
+    {init:'AK',name:'Ankit Khanna',stars:5,text:'Excellent! Very thorough and explained everything clearly. Queue tracking via DocQueue was a game changer.',date:'2 days ago'},
+    {init:'PS',name:'Priya Singh',stars:5,text:'Been visiting for 2 years. Always professional. The live queue feature saved me 2 hours of waiting.',date:'1 week ago'},
+    {init:'RG',name:'Ravi Gupta',stars:4,text:'Good experience. Queue was well managed. Would recommend.',date:'2 weeks ago'},
+  ];
+}
+</script>
+</body>
+</html>
