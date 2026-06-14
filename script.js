@@ -1198,4 +1198,4 @@ function sampleReviews() {
     {init:'RG',name:'Ravi Gupta',stars:4,text:'Good experience. Queue was well managed. Would recommend.',date:'2 weeks ago'},
   ];
 }
-</script>
+
