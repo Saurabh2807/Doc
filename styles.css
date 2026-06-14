@@ -143,11 +143,3 @@ input:checked+.sl:before{transform:translateX(22px);}
 
 /* ── STEP ── */
 .step-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
-</style>
-</head>
-<body>
-
-<!-- ═══════════════════════════════════════
-     SCREEN 1: LANDING
-═══════════════════════════════════════ -->
-<div class="screen show" id="s-landing">
